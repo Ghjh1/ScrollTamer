@@ -1,1 +1,4 @@
-<resources><string name="app_name">Scroll Tamer</string></resources>
+<resources>
+    <string name="app_name">Scroll Tamer</string>
+    <string name="service_description">Делает прокрутку мыши плавной и нежной.</string>
+</resources>
