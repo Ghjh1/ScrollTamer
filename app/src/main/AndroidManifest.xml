@@ -4,10 +4,7 @@
 
     <application
         android:label="Scroll Tamer"
-        android:icon="@android:mipmap/ic_launcher"
-        android:allowBackup="true"
-        android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault">
+        android:icon="@android:drawable/btn_star">
 
         <service android:name=".ScrollService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
