@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.emilia.scrolltamer">
-
     <application
         android:label="Scroll Tamer"
         android:hasCode="true"
-        android:allowBackup="true">
-
-        <service android:name="com.emilia.scrolltamer.ScrollService"
+        android:directBootAware="true">
+        <service android:name=".ScrollService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"
-            android:enabled="true"
             android:label="Scroll Tamer Service">
             <intent-filter>
                 <action android:name="android.view.AccessibilityService" />
@@ -19,9 +16,7 @@
                 android:name="android.view.AccessibilityService"
                 android:resource="@xml/service_config" />
         </service>
-
-        <activity android:name="com.emilia.scrolltamer.MainActivity"
-            android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
