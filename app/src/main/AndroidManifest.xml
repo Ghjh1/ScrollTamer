@@ -4,9 +4,12 @@
     <application android:label="Scroll Tamer" android:icon="@android:drawable/btn_star">
         <service android:name=".ScrollService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
+            android:exported="true"
+            android:enabled="true"
+            android:label="Scroll Tamer Service">
             <intent-filter>
                 <action android:name="android.view.AccessibilityService" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <meta-data
                 android:name="android.view.AccessibilityService"
