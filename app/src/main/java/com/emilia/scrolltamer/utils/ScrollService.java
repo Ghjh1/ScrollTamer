@@ -10,24 +10,23 @@ public class ScrollService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Мы просто логируем тип события в Toast, чтобы понять, что телефон вообще нас "слышит"
-        // Это может быть очень назойливо, но зато мы поймем, на что он реагирует
-        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-             // Делаем Silk Touch на ЛЮБОЕ изменение контента (например, мигание курсора)
-             performSilkScroll();
+        // Реагируем на любой "чих" системы
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+            event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+
+            // Если код работает, ты увидишь это сообщение
+            Toast.makeText(this, "Сервис видит экран!", Toast.LENGTH_SHORT).show();
+            performSimpleScroll();
         }
     }
 
-    private void performSilkScroll() {
-        Path swipePath = new Path();
-        swipePath.moveTo(500, 1000);
-        swipePath.lineTo(500, 400);
+    private void performSimpleScroll() {
+        Path path = new Path();
+        path.moveTo(500, 1000);
+        path.lineTo(500, 500);
 
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(swipePath, 0, 500);
-        GestureDescription.Builder builder = new GestureDescription.Builder();
-        builder.addStroke(stroke);
-
-        dispatchGesture(builder.build(), null, null);
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 500);
+        dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
     }
 
     @Override
