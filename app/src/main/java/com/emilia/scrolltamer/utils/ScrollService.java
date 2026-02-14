@@ -1,4 +1,4 @@
-package com.emilia.scrolltamer;
+package com.emilia.scrolltamer.utils;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.view.accessibility.AccessibilityEvent;
