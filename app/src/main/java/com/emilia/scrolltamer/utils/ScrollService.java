@@ -11,37 +11,21 @@ public class ScrollService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Ловим клик, но даем системе 200мс "отдышаться"
+        // Если кликнули по кнопке с текстом "НАЖМИ МЕНЯ"
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            Log.d(TAG, "Клик пойман. Готовлю сверх-длинный свайп...");
-
-            // Небольшая задержка перед жестом
-            new android.os.Handler().postDelayed(() -> {
-                bigScroll();
-            }, 200);
+            if (event.getText().toString().contains("НАЖМИ МЕНЯ")) {
+                Log.d(TAG, "ПОЛИГОН: Кнопка нажата. Пускаю скролл через 300мс...");
+                new android.os.Handler().postDelayed(this::testScroll, 300);
+            }
         }
     }
 
-    private void bigScroll() {
-        Path path = new Path();
-        // Начнем почти от самого низа экрана и протянем до самого верха
-        // Попробуем координаты, которые точно попадут в центр любого экрана
-        path.moveTo(500, 1500);
-        path.lineTo(500, 100);
-
-        // Увеличим время до 1200мс, чтобы ты ГЛАЗАМИ видел движение
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 1200);
-
-        dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), new GestureResultCallback() {
-            @Override
-            public void onCompleted(GestureDescription gestureDescription) {
-                Log.d(TAG, "ОТЧЕТ: Сверх-длинный жест выполнен успешно!");
-            }
-            @Override
-            public void onCancelled(GestureDescription gestureDescription) {
-                Log.d(TAG, "ОТЧЕТ: Жест прерван (возможно, ты коснулся экрана в этот момент)");
-            }
-        }, null);
+    private void testScroll() {
+        Path p = new Path();
+        p.moveTo(500, 1000);
+        p.lineTo(500, 200);
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 1000);
+        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
     }
 
     @Override
