@@ -1,29 +1,43 @@
 package com.emilia.scrolltamer.utils;
 
 import android.accessibilityservice.AccessibilityService;
-import android.util.Log;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
-import android.widget.Toast;
+import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
     private static final String TAG = "ScrollTamer";
 
     @Override
-    protected void onServiceConnected() {
-        super.onServiceConnected();
-        Log.d(TAG, "СЕРВИС ПОДКЛЮЧЕН И ГОТОВ К РАБОТЕ!");
-        Toast.makeText(this, "Связь установлена!", Toast.LENGTH_SHORT).show();
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        // Мы будем скроллить ТОЛЬКО когда ты кликаешь по экрану
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            Log.d(TAG, "Клик пойман! Запускаю шелковый скролл...");
+            performSilkScroll();
+        }
     }
 
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Теперь мы будем видеть в Termux КАЖДОЕ событие
-        String eventName = AccessibilityEvent.eventTypeToString(event.getEventType());
-        Log.d(TAG, "Событие системы: " + eventName);
+    private void performSilkScroll() {
+        // Координаты для Redmi Note 9C (центр экрана)
+        Path scrollPath = new Path();
+        scrollPath.moveTo(500, 1200); // Начало (снизу)
+        scrollPath.lineTo(500, 400);  // Конец (вверху)
 
-        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            Log.d(TAG, "Обнаружен клик! Пытаюсь скроллить...");
-        }
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(scrollPath, 0, 500);
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        builder.addStroke(stroke);
+
+        dispatchGesture(builder.build(), new GestureResultCallback() {
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                Log.d(TAG, "Скролл успешно выполнен!");
+            }
+            @Override
+            public void onCancelled(GestureDescription gestureDescription) {
+                Log.d(TAG, "Скролл отменен системой! (Проверь настройки безопасности)");
+            }
+        }, null);
     }
 
     @Override
