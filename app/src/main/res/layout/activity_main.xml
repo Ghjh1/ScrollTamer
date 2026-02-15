@@ -8,31 +8,25 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="ИСПЫТАТЕЛЬНЫЙ ПОЛИГОН v44"
-        android:textSize="20sp"
+        android:text="ПУЛЬТ НАСТРОЙКИ СКРОЛЛА v46"
         android:gravity="center"
-        android:padding="10dp"/>
+        android:textSize="18sp"
+        android:padding="8dp"/>
 
-    <Button
-        android:id="@+id/test_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="НАЖМИ МЕНЯ ДЛЯ СКРОЛЛА"/>
+    <Button android:id="@+id/btn_slow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="МЕДЛЕННЫЙ МЕД (2 сек)"/>
+    <Button android:id="@+id/btn_silk" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ШЕЛК (1 сек)"/>
+    <Button android:id="@+id/btn_fast" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ИМПУЛЬС (0.3 сек)"/>
 
     <ScrollView
+        android:id="@+id/test_scroll_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-        <LinearLayout
-            android:id="@+id/scroll_container"
+        android:layout_height="match_parent"
+        android:layout_marginTop="10dp">
+        <TextView
+            android:id="@+id/test_list_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-            <TextView
-                android:id="@+id/test_list_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:lineSpacingExtra="20dp"/>
-        </LinearLayout>
+            android:textSize="22sp"
+            android:lineSpacingMultiplier="1.5"/>
     </ScrollView>
 </LinearLayout>
