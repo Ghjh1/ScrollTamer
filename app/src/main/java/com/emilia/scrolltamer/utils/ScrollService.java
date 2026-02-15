@@ -11,31 +11,35 @@ public class ScrollService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Ловим клик пользователя как сигнал к действию
+        // Ловим клик, но даем системе 200мс "отдышаться"
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            Log.d(TAG, "Сигнал получен! Пробую пробить защиту жестом...");
-            testClick();
+            Log.d(TAG, "Клик пойман. Готовлю сверх-длинный свайп...");
+
+            // Небольшая задержка перед жестом
+            new android.os.Handler().postDelayed(() -> {
+                bigScroll();
+            }, 200);
         }
     }
 
-    private void testClick() {
+    private void bigScroll() {
         Path path = new Path();
-        // Нажмем в центр экрана (примерно 360, 800 для твоего Redmi)
-        path.moveTo(360, 800);
+        // Начнем почти от самого низа экрана и протянем до самого верха
+        // Попробуем координаты, которые точно попадут в центр любого экрана
+        path.moveTo(500, 1500);
+        path.lineTo(500, 100);
 
-        // Короткое нажатие (50 мс)
-        GestureDescription.StrokeDescription click = new GestureDescription.StrokeDescription(path, 0, 50);
-        GestureDescription.Builder builder = new GestureDescription.Builder();
-        builder.addStroke(click);
+        // Увеличим время до 1200мс, чтобы ты ГЛАЗАМИ видел движение
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 1200);
 
-        dispatchGesture(builder.build(), new GestureResultCallback() {
+        dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gestureDescription) {
-                Log.d(TAG, "КАНАЛ СВЯЗИ ПОДТВЕРЖДЕН: Жест принят системой!");
+                Log.d(TAG, "ОТЧЕТ: Сверх-длинный жест выполнен успешно!");
             }
             @Override
             public void onCancelled(GestureDescription gestureDescription) {
-                Log.d(TAG, "БЛОКИРОВКА: Система отвергла жест. Проверь настройки безопасности MIUI.");
+                Log.d(TAG, "ОТЧЕТ: Жест прерван (возможно, ты коснулся экрана в этот момент)");
             }
         }, null);
     }
