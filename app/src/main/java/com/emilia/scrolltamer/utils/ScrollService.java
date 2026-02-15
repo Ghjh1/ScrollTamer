@@ -1,36 +1,54 @@
 package com.emilia.scrolltamer.utils;
 
 import android.accessibilityservice.AccessibilityService;
-import android.view.KeyEvent;
+import android.accessibilityservice.GestureDescription;
+import android.content.BroadcastReceiver;                                       import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
 import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
     private static final String TAG = "ScrollTamer";
 
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Оставляем для отладки кликов
-    }
+    private final BroadcastReceiver scrollReceiver = new BroadcastReceiver() {          @Override
+        public void onReceive(Context context, Intent intent) {                             float direction = intent.getFloatExtra("direction", 0);
+            float x = intent.getFloatExtra("x", 500);
+            float y = intent.getFloatExtra("y", 1000);
 
-    // Это магическое место, где мы ловим кнопки и колесики
-    @Override
-    protected boolean onKeyEvent(KeyEvent event) {
-        int action = event.getAction();
-        int keyCode = event.getKeyCode();
+            Log.d(TAG, "СЕРВИС: Принял сигнал! Сила: " + direction + " в точке: " + x + "," + y);
 
-        Log.d(TAG, "Кнопка нажата! Код: " + keyCode);
-
-        // Если это прокрутка (некоторые мыши эмулируют кнопки громкости или стрелки)
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            Log.d(TAG, "Поймал сигнал! Вместо громкости сейчас будет ШЕЛК...");
-            // Тут мы вызовем наш плавный скролл
-            return true; // "Съедаем" событие, чтобы громкость не менялась
+            // Запускаем наш шелковый жест в месте нахождения курсора
+            executeSilkScroll(x, y, direction);
         }
+    };
 
-        return super.onKeyEvent(event);
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        // Подписываемся на "СМС" от нашего приложения
+        IntentFilter filter = new IntentFilter("com.emilia.scrolltamer.SCROLL_ACTION");
+        registerReceiver(scrollReceiver, filter, Context.RECEIVER_EXPORTED);
+        Log.d(TAG, "СЕРВИС: Готов ловить колесико!");
+    }                                                                           
+    private void executeSilkScroll(float x, float y, float strength) {                  Path p = new Path();
+        p.moveTo(x, y);
+        // Дистанция зависит от силы вращения (умножаем на 150 для наглядности)
+        float endY = y + (strength * 150);
+        p.lineTo(x, endY);
+
+        // Время жеста: 300мс для быстрого отклика
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 300);
+        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
     }
 
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
     @Override
     public void onInterrupt() {}
+    @Override
+    public void onDestroy() {                                                           super.onDestroy();
+        unregisterReceiver(scrollReceiver);
+    }
 }
