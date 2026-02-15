@@ -10,15 +10,14 @@ public class ScrollService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        Log.d(TAG, "!!! МАЯК ПЕРЕЗАПУЩЕН: ЖДУ ЛЮБОЙ ШОРОХ !!!");
+        Log.d(TAG, "!!! МАЯК ПЕРЕЗАПУЩЕН: ВИЖУ ВСЁ !!!");
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Логируем ТИП события цифрой и названием
-        // Это покажет нам, ЧТО именно видит сервис
-        int eventType = event.getEventType();
-        Log.d(TAG, "Движение в системе! Тип: " + eventType);
+        // Получаем текстовое описание события
+        String type = AccessibilityEvent.eventTypeToString(event.getEventType());
+        Log.d(TAG, "СОБЫТИЕ: " + type);
     }
 
     @Override
