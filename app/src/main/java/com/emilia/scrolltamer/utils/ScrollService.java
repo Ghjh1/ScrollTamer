@@ -18,19 +18,18 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v85: Режим Сливочного Масла");
+        Log.d("ScrollTamer", "v86: Режим Короткого Хода");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // Мгновенный стоп при смене направления
         if (Math.signum(strength) != Math.signum(targetVelocity) && targetVelocity != 0) {
             targetVelocity = 0; 
         }
         
-        // Чуть более легкий импульс для старта
-        targetVelocity += (strength * 230); 
+        // Уменьшаем силу импульса (было 230, стало 140) для короткого хода
+        targetVelocity += (strength * 140); 
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -39,16 +38,17 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        // Уменьшили порог остановки, чтобы скролл не "залипал" в конце
         if (Math.abs(targetVelocity) < 0.5f) {
             isEngineRunning = false;
             targetVelocity = 0;
             return;
         }
 
-        // Оптимальный шаг для плавности
-        float step = targetVelocity * 0.22f; 
-        if (Math.abs(step) > 100) step = Math.signum(step) * 100;
+        // Затухание 0.15 (вместо 0.22) — энергия живет дольше для связки кликов
+        float step = targetVelocity * 0.15f; 
+        
+        // Лимитируем шаг сверху (не более 60 пикселей за раз)
+        if (Math.abs(step) > 60) step = Math.signum(step) * 60;
         
         targetVelocity -= step;
 
@@ -56,17 +56,16 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + step);
 
-        // 30 мс - золотая середина "зацепа"
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 30);
+        // 10 мс — очень быстрый и четкий жест (убираем дрожание)
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
         
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gd) {
-                // Краткий "вдох" для системы (5 мс)
-                handler.postDelayed(() -> runStep(startX, startY), 5);
+                // Маленькая пауза 10 мс для стабильности
+                handler.postDelayed(() -> runStep(startX, startY), 10);
             }
             @Override public void onCancelled(GestureDescription gd) { 
-                targetVelocity = 0; 
                 isEngineRunning = false; 
             }
         }, null);
