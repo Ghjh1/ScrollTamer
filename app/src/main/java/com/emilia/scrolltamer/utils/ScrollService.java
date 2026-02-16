@@ -1,8 +1,10 @@
 package com.emilia.scrolltamer.utils;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;                         import android.graphics.Path;
-import android.view.accessibility.AccessibilityEvent;                           import android.os.Handler;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
+import android.view.accessibility.AccessibilityEvent;
+import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
@@ -16,12 +18,12 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "СЕРВИС: Связь установлена!");
+        Log.d("ScrollTamer", "v68: Двигатель запущен");
     }
 
     public static void scroll(float strength, float x, float y) {
-        Log.d("ScrollTamer", "СЕРВИС: Вызов получен, сила: " + strength);
-        targetVelocity += (strength * -150); // Увеличим импульс для теста
+        // Если крутишь "на себя" и список едет не туда — поменяй 120 на -120
+        targetVelocity += (strength * 120); 
 
         if (instance != null && !isEngineRunning) {
             isEngineRunning = true;
@@ -29,21 +31,26 @@ public class ScrollService extends AccessibilityService {
         }
     }
 
-    private void runStep(float x, float y) {                                            if (Math.abs(targetVelocity) < 1) {
+    private void runStep(final float x, final float y) {
+        if (Math.abs(targetVelocity) < 0.5f) {
             isEngineRunning = false;
             targetVelocity = 0;
             return;
         }
 
-        float step = targetVelocity * 0.3f;
+        // 0.2 — это коэффициент вязкости. Чем меньше, тем медленнее затухает
+        float step = targetVelocity * 0.2f;
         targetVelocity -= step;
 
         Path p = new Path();
-        p.moveTo(x, y);                                                                 p.lineTo(x, y + step);
-                                                                                        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
+        p.moveTo(x, y);
+        p.lineTo(x, y + step);
+
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 30);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
-            @Override                                                                       public void onCompleted(GestureDescription gestureDescription) {
-                handler.postDelayed(() -> runStep(x, y), 10);
+            @Override
+            public void onCompleted(GestureDescription gestureDescription) {
+                handler.postDelayed(() -> runStep(x, y), 5);
             }
             @Override
             public void onCancelled(GestureDescription gestureDescription) {
@@ -53,5 +60,6 @@ public class ScrollService extends AccessibilityService {
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
-    @Override public void onInterrupt() {}                                          @Override public void onDestroy() { instance = null; super.onDestroy(); }
+    @Override public void onInterrupt() {}
+    @Override public void onDestroy() { instance = null; super.onDestroy(); }
 }
