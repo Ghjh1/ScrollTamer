@@ -18,15 +18,15 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v81: Мастер Шёлка оживает...");
+        Log.d("ScrollTamer", "v82: Стабильный Шёлк готов");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
         
-        // Увеличиваем импульс для гарантированного сдвига
-        targetVelocity += (strength * 300); 
-
+        // Снижаем агрессивность в 2 раза
+        targetVelocity += (strength * 150); 
+        
         if (!isEngineRunning) {
             isEngineRunning = true;
             instance.runStep(x, y); 
@@ -34,34 +34,38 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        // Снижаем порог до минимума
-        if (Math.abs(targetVelocity) < 0.1f) {
+        if (Math.abs(targetVelocity) < 1.0f) {
             isEngineRunning = false;
             targetVelocity = 0;
             return;
         }
 
+        // Лимитируем шаг, чтобы не "прыгать"
         float step = targetVelocity * 0.15f; 
+        if (Math.abs(step) > 80) step = Math.signum(step) * 80;
+        
         targetVelocity -= step;
-
-        Log.d("ScrollTamer", "Шаг: " + step + " по координатам: " + startX + "," + startY);
 
         Path p = new Path();
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + step);
 
-        // 20мс - баланс между скоростью и пониманием системы
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 20);
-        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
-            @Override
-            public void onCompleted(GestureDescription gestureDescription) {
-                handler.postDelayed(() -> runStep(startX, startY), 1);
-            }
-            @Override public void onCancelled(GestureDescription gd) { 
-                Log.d("ScrollTamer", "Жест отменен системой!");
-                isEngineRunning = false; 
-            }
-        }, null);
+        // 30мс - длительность самого жеста (плавность перемещения пальца)
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 30);
+        
+        try {
+            dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
+                @Override
+                public void onCompleted(GestureDescription gd) {
+                    // Пауза 16мс (соответствует 60Гц экрану)
+                    handler.postDelayed(() -> runStep(startX, startY), 16);
+                }
+                @Override public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
+            }, null);
+        } catch (Exception e) {
+            isEngineRunning = false;
+            Log.e("ScrollTamer", "Ошибка диспетчера жестов", e);
+        }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
