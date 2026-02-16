@@ -8,23 +8,24 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Silk Portal: Scroll here for Magic"
+        android:text="Silk Portal v80"
         android:textColor="#FFD700"
-        android:padding="8dp"
-        android:gravity="center" />
+        android:padding="12dp"
+        android:gravity="center"
+        android:textStyle="bold" />
 
     <ScrollView
         android:id="@+id/main_scroll_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#1A1A1A">
+        android:layout_height="match_parent">
         
         <TextView
             android:id="@+id/test_list_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="20dp"
-            android:textColor="#DDDDDD"
-            android:textSize="20sp" />
+            android:padding="16dp"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:lineSpacingExtra="8dp" />
     </ScrollView>
 </LinearLayout>

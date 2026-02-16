@@ -3,9 +3,8 @@ package com.emilia.scrolltamer;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.MotionEvent;
-import android.view.View;
+import android.widget.ScrollView;
 import android.widget.TextView;
-import android.util.Log;
 import com.emilia.scrolltamer.utils.ScrollService;
 
 public class MainActivity extends Activity {
@@ -14,26 +13,25 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        View container = findViewById(R.id.test_scroll_view);
-        if (container != null) {
-            container.setOnGenericMotionListener((v, event) -> {
-                if (event.getAction() == MotionEvent.ACTION_SCROLL) {
-                    float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                    if (vScroll != 0) {
-                        Log.d("ScrollTamer", "UI: Колесо крутится, шлю в сервис...");
-                        ScrollService.scroll(vScroll, event.getRawX(), event.getRawY());
-                        return true;
-                    }
-                }
-                return false;
-            });
-        }
+        ScrollView scrollView = findViewById(R.id.main_scroll_view);
+        TextView textView = findViewById(R.id.test_list_text);
 
-        TextView tv = findViewById(R.id.test_list_text);
-        if (tv != null) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 1; i <= 100; i++) sb.append("Строка № ").append(i).append("\n");
-            tv.setText(sb.toString());
+        // Наполняем "Шёлковый путь" текстом для теста
+        StringBuilder content = new StringBuilder();
+        for (int i = 1; i <= 500; i++) {
+            content.append("Строка №").append(i).append(": Листай этот шёлк... 🍯\n");
         }
+        textView.setText(content.toString());
+
+        // Главный перехватчик
+        scrollView.setOnGenericMotionListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_SCROLL) {
+                float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+                // Отправляем сигнал в наш идеальный движок
+                ScrollService.scroll(vScroll, event.getRawX(), event.getRawY());
+                return true; // Полностью блокируем системный дерганый скролл
+            }
+            return false;
+        });
     }
 }
