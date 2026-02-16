@@ -1,18 +1,15 @@
 package com.emilia.scrolltamer;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
-import android.util.Log;
+import com.emilia.scrolltamer.utils.ScrollService;
 
 public class MainActivity extends Activity {
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+    @Override                                                                       protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);                                             setContentView(R.layout.activity_main);
 
         View container = findViewById(R.id.test_scroll_view);
         if (container != null) {
@@ -20,13 +17,8 @@ public class MainActivity extends Activity {
                 if (event.getAction() == MotionEvent.ACTION_SCROLL) {
                     float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
                     if (vScroll != 0) {
-                        try {
-                            Intent intent = new Intent("com.emilia.scrolltamer.SCROLL_ACTION");
-                            intent.putExtra("direction", vScroll);
-                            sendBroadcast(intent);
-                        } catch (Exception e) {
-                            Log.e("ScrollTamer", "Ошибка отправки: " + e.getMessage());
-                        }
+                        // ПРЯМОЙ ВЫЗОВ СЕРВИСА
+                        ScrollService.scroll(vScroll);
                         return true;
                     }
                 }
@@ -36,8 +28,7 @@ public class MainActivity extends Activity {
 
         TextView tv = findViewById(R.id.test_list_text);
         if (tv != null) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 1; i <= 100; i++) sb.append("Строка № ").append(i).append("\n");
+            StringBuilder sb = new StringBuilder();                                         for (int i = 1; i <= 100; i++) sb.append("Строка № ").append(i).append("\n");
             tv.setText(sb.toString());
         }
     }
