@@ -1,8 +1,11 @@
 package com.emilia.scrolltamer;
 
-import android.app.Activity;                                                    import android.os.Bundle;
-import android.view.MotionEvent;                                                import android.view.View;
+import android.app.Activity;
+import android.os.Bundle;
+import android.view.MotionEvent;
+import android.view.View;
 import android.widget.TextView;
+import android.util.Log;
 import com.emilia.scrolltamer.utils.ScrollService;
 
 public class MainActivity extends Activity {
@@ -17,7 +20,7 @@ public class MainActivity extends Activity {
                 if (event.getAction() == MotionEvent.ACTION_SCROLL) {
                     float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
                     if (vScroll != 0) {
-                        // Передаем и силу, и координаты курсора
+                        Log.d("ScrollTamer", "UI: Колесо крутится, шлю в сервис...");
                         ScrollService.scroll(vScroll, event.getRawX(), event.getRawY());
                         return true;
                     }
