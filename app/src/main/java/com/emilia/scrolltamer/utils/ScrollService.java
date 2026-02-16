@@ -8,29 +8,33 @@ import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
+    private static float x = 500;
+    private static float y = 1000;
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "СЕРВИС: Подключен напрямую");
+        Log.d("ScrollTamer", "v65: Двигатель запущен");
     }
 
-    // Статический метод, который можно вызвать из любой части приложения
-    public static void scroll(float strength) {
-        if (instance == null) {
-            Log.e("ScrollTamer", "СЕРВИС: Еще не запущен в Спец. возможностях!");
-            return;
-        }
+    public static void scroll(float strength, float rawX, float rawY) {
+        if (instance == null) return;
         
-        float step = strength * 20; 
-        Log.d("ScrollTamer", "СЕРВИС: Получен прямой вызов! Шаг: " + step);
+        x = rawX;
+        y = rawY;
+
+        // Увеличим множитель, чтобы гарантированно пробить "порог трения"
+        float totalStep = strength * 60; 
+        
+        Log.d("ScrollTamer", "v65: Скролл в точке " + x + ":" + y + " сила " + totalStep);
         
         Path p = new Path();
-        p.moveTo(500, 1000);
-        p.lineTo(500, 1000 + step);
+        p.moveTo(x, y);
+        p.lineTo(x, y + totalStep);
 
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 50);
+        // Растягиваем движение на 200мс для мягкости
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 200);
         instance.dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
     }
 
