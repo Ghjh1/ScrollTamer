@@ -3,30 +3,31 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="#121212">
 
-    <TextView
-        android:layout_width="match_parent"
+    <Button
+        android:id="@+id/honey_button"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="ПУЛЬТ НАСТРОЙКИ СКРОЛЛА v46"
-        android:gravity="center"
-        android:textSize="18sp"
-        android:padding="8dp"/>
+        android:layout_gravity="center"
+        android:text="Honey Scroll (Disabled for test)"
+        android:clickable="false"
+        android:focusable="false" />
 
-    <Button android:id="@+id/btn_slow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="МЕДЛЕННЫЙ МЕД (2 сек)"/>
-    <Button android:id="@+id/btn_silk" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ШЕЛК (1 сек)"/>
-    <Button android:id="@+id/btn_fast" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ИМПУЛЬС (0.3 сек)"/>
-
-    <ScrollView
+    <FrameLayout
         android:id="@+id/test_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="10dp">
-        <TextView
-            android:id="@+id/test_list_text"
+        android:layout_marginTop="50dp"> <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="22sp"
-            android:lineSpacingMultiplier="1.5"/>
-    </ScrollView>
+            android:layout_height="match_parent">
+            <TextView
+                android:id="@+id/test_list_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp" />
+        </ScrollView>
+    </FrameLayout>
 </LinearLayout>
