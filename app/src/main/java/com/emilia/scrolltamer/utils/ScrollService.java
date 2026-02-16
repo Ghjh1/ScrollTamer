@@ -18,17 +18,21 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v75: Глобальный режим активирован!");
+        Log.d("ScrollTamer", "v76: Я живой и вижу окна!");
+    }
+
+    // Этот метод вызывается, когда в системе что-то меняется (открыл чат, нажал кнопку)
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            Log.d("ScrollTamer", "Вижу системный скролл в приложении: " + event.getPackageName());
+        }
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
         
-        // Лимитируем импульс, чтобы не было "взрыва" в чатах
-        float impulse = strength * 130;
-        if (Math.abs(impulse) > 350) impulse = Math.signum(impulse) * 350;
-        
-        targetVelocity += impulse;
+        targetVelocity += (strength * 130); 
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -43,7 +47,6 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
-        // Плавное затухание 0.2 (более стабильно для WebView)
         float step = targetVelocity * 0.2f;
         targetVelocity -= step;
 
@@ -51,19 +54,16 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + step);
 
-        // 40мс - делаем жест понятным для браузера Via
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gestureDescription) {
-                handler.postDelayed(() -> runStep(startX, startY), 8);
+                handler.postDelayed(() -> runStep(startX, startY), 10);
             }
             @Override
             public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
         }, null);
     }
 
-    @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
     @Override public void onInterrupt() {}
-    @Override public void onDestroy() { instance = null; super.onDestroy(); }
 }
