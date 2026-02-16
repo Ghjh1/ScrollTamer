@@ -18,18 +18,21 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v86: Режим Короткого Хода");
+        Log.d("ScrollTamer", "v87: Режим Гиперпрыжка");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
+        // РЕЗКИЙ ТОРМОЗ: Если крутим назад, гасим скорость мгновенно
         if (Math.signum(strength) != Math.signum(targetVelocity) && targetVelocity != 0) {
             targetVelocity = 0; 
+            // Даем микро-паузу для смены вектора
         }
         
-        // Уменьшаем силу импульса (было 230, стало 140) для короткого хода
-        targetVelocity += (strength * 140); 
+        // ПРОГРЕССИЯ: Чем выше текущая скорость, тем сильнее добавляем
+        float multiplier = 1.0f + (Math.abs(targetVelocity) / 500f);
+        targetVelocity += (strength * 110 * multiplier); 
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -44,26 +47,27 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
-        // Затухание 0.15 (вместо 0.22) — энергия живет дольше для связки кликов
-        float step = targetVelocity * 0.15f; 
+        // Вязкость затухания (0.12) - летим еще дольше и мягче
+        float step = targetVelocity * 0.12f; 
         
-        // Лимитируем шаг сверху (не более 60 пикселей за раз)
-        if (Math.abs(step) > 60) step = Math.signum(step) * 60;
-        
+        // Лимитируем шаг для "короткого хода" на старте
+        if (Math.abs(targetVelocity) < 200 && Math.abs(step) > 40) {
+            step = Math.signum(step) * 40;
+        }
+
         targetVelocity -= step;
 
         Path p = new Path();
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + step);
 
-        // 10 мс — очень быстрый и четкий жест (убираем дрожание)
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
+        // 12мс - баланс между четкостью v86 и мягкостью v85
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 12);
         
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gd) {
-                // Маленькая пауза 10 мс для стабильности
-                handler.postDelayed(() -> runStep(startX, startY), 10);
+                handler.postDelayed(() -> runStep(startX, startY), 8);
             }
             @Override public void onCancelled(GestureDescription gd) { 
                 isEngineRunning = false; 
