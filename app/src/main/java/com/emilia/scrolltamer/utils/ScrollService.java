@@ -1,4 +1,5 @@
-package com.emilia.scrolltamer.utils;                                           
+package com.emilia.scrolltamer.utils;
+
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.content.BroadcastReceiver;
@@ -6,46 +7,51 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Path;
-import android.view.accessibility.AccessibilityEvent;
-import android.os.Handler;
-import android.os.Looper;
+import android.view.accessibility.AccessibilityEvent;                           import android.os.Handler;
+import android.os.Looper;                                                       import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
+    private static final String TAG = "ScrollTamer";
     private float pendingDistance = 0;
-    private boolean isWorking = false;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean isRunning = false;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private final BroadcastReceiver scrollReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             float strength = intent.getFloatExtra("direction", 0);
-            // Каждый щелчок добавляет 60 пикселей в "бак" (направление инвертируем)
-            pendingDistance += (strength * -60);                                
-            if (!isWorking) startEngine();
+            pendingDistance += (strength * -100); // Увеличим порцию топлива
+            Log.d(TAG, "Сигнал получен! В баке: " + pendingDistance);
+
+            if (!isRunning) {
+                Log.d(TAG, "Запускаю двигатель...");
+                startScrolling();
+            }
         }
     };
 
-    private void startEngine() {
+    private void startScrolling() {
         if (Math.abs(pendingDistance) < 5) {
-            isWorking = false;
-            return;
-        }
-        isWorking = true;
+            Log.d(TAG, "Топливо кончилось, стоп.");
+            isRunning = false;                                                              pendingDistance = 0;
+            return;                                                                     }
 
-        // Берем кусочек дистанции для одного "кадра" (например, 10% от накопленного)
-        float step = pendingDistance * 0.4f;
+        isRunning = true;
+        float step = (pendingDistance > 0) ? 40 : -40; // Фиксированный шаг для теста
         pendingDistance -= step;
 
         Path p = new Path();
         p.moveTo(500, 800);
         p.lineTo(500, 800 + step);
 
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
-        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        builder.addStroke(new GestureDescription.StrokeDescription(p, 0, 50));
+
+        dispatchGesture(builder.build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gestureDescription) {
-                // После короткого шага сразу планируем следующий, создавая поток
-                mainHandler.postDelayed(() -> startEngine(), 10);
+                // Маленькая пауза между кадрами для Redmi
+                handler.postDelayed(() -> startScrolling(), 5);
             }
         }, null);
     }
@@ -53,11 +59,13 @@ public class ScrollService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        registerReceiver(scrollReceiver, new IntentFilter("com.emilia.scrolltamer.SCROLL_ACTION"));
+        IntentFilter filter = new IntentFilter("com.emilia.scrolltamer.SCROLL_ACTION");
+        registerReceiver(scrollReceiver, filter);
+        Log.d(TAG, "СЕРВИС: Приемник зарегистрирован");
     }
 
-    @Override public void onAccessibilityEvent(AccessibilityEvent event) {}         @Override public void onInterrupt() {}
-    @Override public void onDestroy() {
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
+    @Override public void onInterrupt() {}                                          @Override public void onDestroy() {
         super.onDestroy();
         try { unregisterReceiver(scrollReceiver); } catch (Exception e) {}
     }
