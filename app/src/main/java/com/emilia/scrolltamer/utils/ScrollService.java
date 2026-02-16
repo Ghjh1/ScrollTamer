@@ -6,6 +6,7 @@ import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
@@ -17,11 +18,19 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        Log.d("ScrollTamer", "СИСТЕМА: Сервис подключен и готов к магии!");
     }
 
     public static void scroll(float strength, float x, float y) {
+        if (instance == null) {
+            Log.d("ScrollTamer", "?? СЕРВИС МОЛЧИТ: instance is null ??");
+            return;
+        }
+        
+        Log.d("ScrollTamer", "!! МАГИЯ В ДЕЛЕ: принимаю импульс !!");
         targetVelocity += (strength * 250); 
-        if (instance != null && !isEngineRunning) {
+
+        if (!isEngineRunning) {
             isEngineRunning = true;
             instance.runStep(500, 1000); 
         }
@@ -34,7 +43,6 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
-        // ПРАВИЛЬНОЕ ОБЪЯВЛЕНИЕ
         float step = targetVelocity * 0.1f;
         targetVelocity -= step;
 
@@ -49,13 +57,11 @@ public class ScrollService extends AccessibilityService {
                 handler.postDelayed(() -> runStep(startX, startY), 1);
             }
             @Override
-            public void onCancelled(GestureDescription gd) {
-                isEngineRunning = false;
-            }
+            public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
         }, null);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
-    @Override public void onInterrupt() {}
+    @Override public void onInterrupt() { instance = null; }
     @Override public void onDestroy() { instance = null; super.onDestroy(); }
 }
