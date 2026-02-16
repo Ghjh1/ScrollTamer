@@ -18,21 +18,23 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v87: Режим Гиперпрыжка");
+        Log.d("ScrollTamer", "v88: Обуздание Мустанга");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // РЕЗКИЙ ТОРМОЗ: Если крутим назад, гасим скорость мгновенно
+        // Улучшенный ТОРМОЗ: Активное противодействие при смене направления
         if (Math.signum(strength) != Math.signum(targetVelocity) && targetVelocity != 0) {
-            targetVelocity = 0; 
-            // Даем микро-паузу для смены вектора
+            targetVelocity *= -0.2f; // Небольшой реверс для мгновенной остановки
         }
         
-        // ПРОГРЕССИЯ: Чем выше текущая скорость, тем сильнее добавляем
-        float multiplier = 1.0f + (Math.abs(targetVelocity) / 500f);
-        targetVelocity += (strength * 110 * multiplier); 
+        // Прогрессия с ограничителем (Max Velocity = 2500)
+        float multiplier = 1.0f + (Math.min(Math.abs(targetVelocity), 1500f) / 600f);
+        targetVelocity += (strength * 100 * multiplier); 
+
+        // Жесткий лимит, чтобы не "вылететь с трассы"
+        if (Math.abs(targetVelocity) > 2500) targetVelocity = Math.signum(targetVelocity) * 2500;
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -41,38 +43,45 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.5f) {
+        if (Math.abs(targetVelocity) < 1.0f) {
             isEngineRunning = false;
             targetVelocity = 0;
             return;
         }
 
-        // Вязкость затухания (0.12) - летим еще дольше и мягче
-        float step = targetVelocity * 0.12f; 
+        float step = targetVelocity * 0.15f; 
         
-        // Лимитируем шаг для "короткого хода" на старте
-        if (Math.abs(targetVelocity) < 200 && Math.abs(step) > 40) {
-            step = Math.signum(step) * 40;
-        }
+        // Лимит шага для стабильности жеста
+        if (Math.abs(step) > 150) step = Math.signum(step) * 150;
 
         targetVelocity -= step;
 
         Path p = new Path();
         p.moveTo(startX, startY);
-        p.lineTo(startX, startY + step);
+        // Безопасные координаты: следим, чтобы палец не ушел за пределы видимости
+        float endY = startY + step;
+        if (endY < 10) endY = 10;
+        if (endY > 2300) endY = 2300; 
 
-        // 12мс - баланс между четкостью v86 и мягкостью v85
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 12);
+        p.lineTo(startX, endY);
+
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 15);
         
-        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
-            @Override
-            public void onCompleted(GestureDescription gd) {
-                handler.postDelayed(() -> runStep(startX, startY), 8);
-            }
-            @Override public void onCancelled(GestureDescription gd) { 
-                isEngineRunning = false; 
-            }
-        }, null);
+        try {
+            dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
+                @Override
+                public void onCompleted(GestureDescription gd) {
+                    handler.postDelayed(() -> runStep(startX, startY), 10);
+                }
+                @Override public void onCancelled(GestureDescription gd) { 
+                    targetVelocity = 0;
+                    isEngineRunning = false; 
+                }
+            }, null);
+        } catch (Exception e) {
+            targetVelocity = 0;
+            isEngineRunning = false;
+        }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
