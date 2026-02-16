@@ -7,6 +7,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.KeyEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
@@ -18,15 +19,25 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v76: Я живой и вижу окна!");
+        Log.d("ScrollTamer", "v77: ГЛОБАЛЬНЫЙ КОНТРОЛЬ ЗАПУЩЕН");
     }
 
-    // Этот метод вызывается, когда в системе что-то меняется (открыл чат, нажал кнопку)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            Log.d("ScrollTamer", "Вижу системный скролл в приложении: " + event.getPackageName());
-        }
+        // Мы уже видим скролл других приложений здесь.
+        // В будущем мы сможем "помогать" им скроллиться плавнее.
+    }
+
+    // Пробуем поймать кнопки мыши или специфические сигналы прокрутки
+    @Override
+    protected boolean onKeyEvent(KeyEvent event) {
+        int action = event.getAction();
+        int keyCode = event.getKeyCode();
+        
+        // Логируем нажатия, чтобы понять, пролетает ли тут мышь
+        Log.d("ScrollTamer", "Key Event: " + keyCode + " Action: " + action);
+        
+        return super.onKeyEvent(event);
     }
 
     public static void scroll(float strength, float x, float y) {
@@ -36,7 +47,8 @@ public class ScrollService extends AccessibilityService {
 
         if (!isEngineRunning) {
             isEngineRunning = true;
-            instance.runStep(x, y); 
+            // Центрируем скролл для стабильности во внешних приложениях
+            instance.runStep(540, 1200); 
         }
     }
 
@@ -54,6 +66,7 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + step);
 
+        // Стабильный 40мс жест для совместимости с внешними окнами
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
             @Override
@@ -65,5 +78,5 @@ public class ScrollService extends AccessibilityService {
         }, null);
     }
 
-    @Override public void onInterrupt() {}
+    @Override public void onInterrupt() { instance = null; }
 }
