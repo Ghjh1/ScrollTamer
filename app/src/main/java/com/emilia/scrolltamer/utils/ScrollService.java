@@ -18,18 +18,18 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v83: Режим хирургического Шёлка");
+        Log.d("ScrollTamer", "v84: Режим плотного зацепа");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // Если крутим в противоположную сторону - мгновенно гасим старую инерцию
+        // Резкая смена направления
         if (Math.signum(strength) != Math.signum(targetVelocity) && targetVelocity != 0) {
             targetVelocity = 0; 
         }
         
-        targetVelocity += (strength * 180); 
+        targetVelocity += (strength * 200); 
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -38,33 +38,34 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 2.0f) {
+        if (Math.abs(targetVelocity) < 1.0f) {
             isEngineRunning = false;
             targetVelocity = 0;
             return;
         }
 
-        // Вычисляем шаг
-        float step = targetVelocity * 0.25f; // Увеличили отзывчивость
-        if (Math.abs(step) > 100) step = Math.signum(step) * 100;
+        // Делаем шаг более весомым
+        float step = targetVelocity * 0.3f; 
+        if (Math.abs(step) > 120) step = Math.signum(step) * 120;
         
         targetVelocity -= step;
 
         Path p = new Path();
         p.moveTo(startX, startY);
+        // Небольшой "занос" для имитации вязкости
         p.lineTo(startX, startY + step);
 
-        // Укорачиваем сам жест до 20мс для мгновенного отклика
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 20);
+        // Увеличиваем длительность жеста до 50мс - это и есть "удержание"
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 50);
         
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
             @Override
             public void onCompleted(GestureDescription gd) {
-                // Минимальная пауза для четкости
-                handler.postDelayed(() -> runStep(startX, startY), 5);
+                // Прямой запуск следующего шага без задержки
+                runStep(startX, startY);
             }
             @Override public void onCancelled(GestureDescription gd) { 
-                targetVelocity *= 0.5f; // Гасим энергию при отмене, чтобы не "стреляло"
+                targetVelocity = 0; 
                 isEngineRunning = false; 
             }
         }, null);
