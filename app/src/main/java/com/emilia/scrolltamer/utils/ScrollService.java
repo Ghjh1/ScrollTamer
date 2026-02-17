@@ -6,11 +6,11 @@ import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
+    private static float lastStepValue = 0;
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -18,21 +18,24 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
-        Log.d("ScrollTamer", "v89: Шлифовка Алмаза");
+    }
+
+    public static String getDebugData() {
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nACTIVE: %s", 
+                targetVelocity, lastStepValue, isEngineRunning ? "YES" : "NO");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ИДЕАЛЬНЫЙ ТОРМОЗ: Если сменили направление - сбрасываем всё в ноль перед новым толчком
-        if (Math.signum(strength) != Math.signum(targetVelocity) && targetVelocity != 0) {
-            targetVelocity = 0; 
+        // РЕЖИМ ПОРТНОГО: Если крутим назад при движении вперед - полный СТОП
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 5) {
+            targetVelocity = 0;
+            lastStepValue = 0;
+            return; // Первый обратный щелчок просто останавливает поток
         }
         
-        // Добавляем импульс (увеличили вес одного клика до 120 для уверенности)
-        targetVelocity += (strength * 120); 
-
-        // Лимит скорости для безопасности
+        targetVelocity += (strength * 130); 
         if (Math.abs(targetVelocity) > 2200) targetVelocity = Math.signum(targetVelocity) * 2200;
 
         if (!isEngineRunning) {
@@ -42,35 +45,31 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.5f) {
+        if (Math.abs(targetVelocity) < 1.0f) {
             isEngineRunning = false;
             targetVelocity = 0;
+            lastStepValue = 0;
             return;
         }
 
-        // Плавное затухание (0.18)
-        float step = targetVelocity * 0.18f; 
-        if (Math.abs(step) > 130) step = Math.signum(step) * 130;
+        lastStepValue = targetVelocity * 0.18f; 
+        if (Math.abs(lastStepValue) > 130) lastStepValue = Math.signum(lastStepValue) * 130;
 
-        targetVelocity -= step;
+        targetVelocity -= lastStepValue;
 
         Path p = new Path();
         p.moveTo(startX, startY);
-        p.lineTo(startX, startY + step);
+        p.lineTo(startX, startY + lastStepValue);
 
-        // Ультра-короткий жест (10мс) для максимальной частоты опроса
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
-                    // Минимальная пауза (5мс), чтобы не терять быстрые клики
                     handler.postDelayed(() -> runStep(startX, startY), 5);
                 }
-                @Override public void onCancelled(GestureDescription gd) { 
-                    isEngineRunning = false; 
-                }
+                @Override public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
             }, null);
         } catch (Exception e) {
             isEngineRunning = false;
