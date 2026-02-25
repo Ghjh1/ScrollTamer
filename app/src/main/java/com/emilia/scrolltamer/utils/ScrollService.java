@@ -29,24 +29,24 @@ public class ScrollService extends AccessibilityService {
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // УСИЛЕННЫЙ ТОРМОЗ (Ловим даже быстрые клики)
+        // 1. Обработка тормоза (теперь работает ВСЕГДА, так как targetVelocity обновляется мгновенно)
         if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 1) {
             brakeCounter++;
             if (brakeCounter >= 3) {
                 targetVelocity = 0;
                 brakeCounter = 0;
             } else {
-                targetVelocity *= 0.4f; 
+                targetVelocity *= 0.3f; // Сделали тормоз чуть сильнее
             }
             return; 
         }
         
         brakeCounter = 0;
-        // Импульс для мягкого старта
-        targetVelocity += (strength * 90); 
+        
+        // 2. Мгновенная запись импульса в "бак" (Ни один клик не пропадет!)
+        targetVelocity += (strength * 95); 
 
-        if (Math.abs(targetVelocity) > 2100) targetVelocity = Math.signum(targetVelocity) * 2100;
-
+        // 3. Запуск двигателя, если он стоял
         if (!isEngineRunning) {
             isEngineRunning = true;
             instance.runStep(x, y); 
@@ -54,37 +54,41 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.4f) {
+        // Если энергия кончилась — глушим мотор
+        if (Math.abs(targetVelocity) < 0.3f) {
             isEngineRunning = false;
             targetVelocity = 0;
             lastStepValue = 0;
             return;
         }
 
-        // Плавное затухание (0.20)
-        lastStepValue = targetVelocity * 0.20f; 
-        if (Math.abs(lastStepValue) > 95) lastStepValue = Math.signum(lastStepValue) * 95;
+        // Вычисляем размер текущего "куска" пути
+        lastStepValue = targetVelocity * 0.18f; 
+        if (Math.abs(lastStepValue) > 110) lastStepValue = Math.signum(lastStepValue) * 110;
 
+        // Вычитаем потраченную энергию
         targetVelocity -= lastStepValue;
 
         Path p = new Path();
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
-        // КИЛЛЕР-ФИЧА: 25мс - максимально мягкий контакт "подушечкой пальца"
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 25);
+        // 20мс - оптимальная мягкость
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 20);
         
         try {
+            // Отправляем жест и СРАЗУ планируем следующий, опираясь на остаток targetVelocity
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
-                    // Пауза 2мс - почти непрерывный поток
+                    // Короткая пауза, чтобы Android успел "переварить" окончание потока
                     handler.postDelayed(() -> {
-                        if (isEngineRunning) runStep(startX, startY);
-                    }, 2);
+                        runStep(startX, startY);
+                    }, 5); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
-                    isEngineRunning = false; 
+                    // Если система отменила - не страшно, попробуем еще раз через миг
+                    handler.postDelayed(() -> runStep(startX, startY), 10);
                 }
             }, null);
         } catch (Exception e) {
