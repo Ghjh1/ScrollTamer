@@ -19,7 +19,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | BOOST: %s", velocity, boostCycles > 0 ? "ON" : "OFF");
+        return String.format("V: %.1f | MODE: %s", velocity, Math.abs(velocity) < 200 ? "MANUAL" : "AUTO");
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -29,21 +29,19 @@ public class ScrollService extends AccessibilityService {
 
         // ТОРМОЗ (75/130мс)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            int brakeDuration = (Math.abs(velocity) < 900) ? 75 : 130;
             velocity = 0; active = false;
-            lockUntil = now + brakeDuration;
+            lockUntil = now + (Math.abs(velocity) < 900 ? 75 : 130);
             instance.killQueue(x, y);
             return;
         } 
         
-        // ЛОГИКА "МАСЛЯНОГО ШАГА"
         float input = delta * 55;
-        if (Math.abs(velocity + input) < 125) {
-            // Если скорость мала - обнуляем и даем только чистый импульс пробоя
+        
+        // РУЧНОЙ РЕЖИМ (до 200 velocity)
+        if (Math.abs(velocity + input) < 200) {
             velocity = input; 
-            boostCycles = 1; // Только один такт усиления
+            boostCycles = 1; 
         } else {
-            // На больших скоростях работаем как обычно
             velocity += input;
         }
 
@@ -51,7 +49,7 @@ public class ScrollService extends AccessibilityService {
 
         if (!active) {
             active = true;
-            if (boostCycles == 0) boostCycles = 1; // Страховка старта
+            if (boostCycles == 0) boostCycles = 1;
             instance.pulse(x, y);
         }
     }
@@ -70,23 +68,26 @@ public class ScrollService extends AccessibilityService {
 
         float step = velocity * 0.12f;
         
-        // ТОТ САМЫЙ ТОЛЧОК
+        // ПИКСЕЛЬНЫЙ ТОЛЧОК (Снизили до 7 пикселей)
         if (boostCycles > 0) {
-            step += (Math.signum(velocity) * 12);
+            step += (Math.signum(velocity) * 7); 
             boostCycles--;
         }
 
         if (Math.abs(step) > 175) step = Math.signum(step) * 175;
-        velocity -= (step * 0.8f); 
+        velocity -= (step * 0.85f); 
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 18);
+        // Для микро-шагов делаем жест чуть быстрее (15мс), чтобы не "мазало"
+        int duration = (Math.abs(step) < 15) ? 15 : 18;
+
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, duration);
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 20);
         } catch (Exception e) { active = false; }
     }
 
