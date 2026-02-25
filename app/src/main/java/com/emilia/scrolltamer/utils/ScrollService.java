@@ -36,11 +36,12 @@ public class ScrollService extends AccessibilityService {
             return;
         } 
         
-        // СИЛА ЩЕЛЧКА: Уменьшена вдвое (115 -> 55)
-        velocity += delta * 55;
+        // СИЛА ЩЕЛЧКА: Подняли до 75 (баланс между точностью и стартом)
+        velocity += delta * 75;
         if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
-        if (!active && Math.abs(velocity) > 0.5f) {
+        // СТАРТ: Ультра-низкий порог 0.1, чтобы запускалось всегда
+        if (!active && Math.abs(velocity) > 0.1f) {
             active = true;
             instance.pulse(x, y);
         }
@@ -55,14 +56,15 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 0.8f) {
+        // ОСТАНОВКА: Порог 0.5, чтобы не дергалось в конце
+        if (!active || Math.abs(velocity) < 0.5f) {
             velocity = 0;
             active = false;
             return;
         }
 
-        // ЗАТУХАНИЕ: Сделали мягче (0.16 -> 0.12), чтобы компенсировать малую силу
-        float step = velocity * 0.12f;
+        // ЗАТУХАНИЕ: 0.10 - для максимально долгого и плавного "вылета"
+        float step = velocity * 0.10f;
         if (Math.abs(step) > 175) step = Math.signum(step) * 175;
         velocity -= step;
 
@@ -70,7 +72,6 @@ public class ScrollService extends AccessibilityService {
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
-        lastPulseTime = System.currentTimeMillis();
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 18);
         
         try {
@@ -81,5 +82,4 @@ public class ScrollService extends AccessibilityService {
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
     @Override public void onInterrupt() { instance = null; }
-    private static long lastPulseTime = 0;
 }
