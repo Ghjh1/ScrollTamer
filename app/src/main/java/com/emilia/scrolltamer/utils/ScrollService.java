@@ -28,13 +28,15 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // ЭКСТРЕННЫЙ СТОП НА ВЫСОКИХ ОБОРОТАХ
+        // ДИНАМИЧЕСКИЙ ТОРМОЗ (Шлифовка)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            velocity = 0;
-            active = false; // Принудительно глушим движок
-            lockUntil = now + 150;
+            // Если скорость была низкой, палец точнее - шлюз короче
+            int brakeDuration = (Math.abs(velocity) < 400) ? 100 : 150;
             
-            // Отправляем жест-"заглушку" для очистки очереди
+            velocity = 0;
+            active = false;
+            lockUntil = now + brakeDuration;
+            
             instance.killQueue(x, y);
             return;
         } 
@@ -51,7 +53,7 @@ public class ScrollService extends AccessibilityService {
     private void killQueue(float x, float y) {
         Path p = new Path();
         p.moveTo(x, y);
-        p.lineTo(x, y + 1); // Минимальное движение
+        p.lineTo(x, y + 1);
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
     }
