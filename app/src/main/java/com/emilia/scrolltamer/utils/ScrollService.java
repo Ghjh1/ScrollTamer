@@ -29,25 +29,23 @@ public class ScrollService extends AccessibilityService {
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ТОРМОЗНОЙ ПУТЬ (3 щелчка)
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 2) {
+        // УСИЛЕННЫЙ ТОРМОЗ (Ловим даже быстрые клики)
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 1) {
             brakeCounter++;
-            if (brakeCounter == 1) targetVelocity *= 0.6f; // Гасим 40%
-            else if (brakeCounter == 2) targetVelocity *= 0.3f; // Гасим еще
-            else {
-                targetVelocity = 0; // Полный стоп на 3-й клик
+            if (brakeCounter >= 3) {
+                targetVelocity = 0;
                 brakeCounter = 0;
+            } else {
+                targetVelocity *= 0.4f; 
             }
-            return;
+            return; 
         }
         
-        // Сброс счетчика тормоза, если крутим в ту же сторону
         brakeCounter = 0;
-        
-        // Импульс v91 (короткий ход)
-        targetVelocity += (strength * 80); 
+        // Импульс для мягкого старта
+        targetVelocity += (strength * 90); 
 
-        if (Math.abs(targetVelocity) > 2000) targetVelocity = Math.signum(targetVelocity) * 2000;
+        if (Math.abs(targetVelocity) > 2100) targetVelocity = Math.signum(targetVelocity) * 2100;
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -56,16 +54,16 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        // Жесткий порог отсечки (0.5), чтобы приборы не "зависали"
-        if (Math.abs(targetVelocity) < 0.5f) {
+        if (Math.abs(targetVelocity) < 0.4f) {
             isEngineRunning = false;
             targetVelocity = 0;
             lastStepValue = 0;
             return;
         }
 
-        lastStepValue = targetVelocity * 0.22f; 
-        if (Math.abs(lastStepValue) > 90) lastStepValue = Math.signum(lastStepValue) * 90;
+        // Плавное затухание (0.20)
+        lastStepValue = targetVelocity * 0.20f; 
+        if (Math.abs(lastStepValue) > 95) lastStepValue = Math.signum(lastStepValue) * 95;
 
         targetVelocity -= lastStepValue;
 
@@ -73,21 +71,20 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
-        // 15мс - возвращаем мягкость v90 (было 8мс)
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 15);
+        // КИЛЛЕР-ФИЧА: 25мс - максимально мягкий контакт "подушечкой пальца"
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 25);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
+                    // Пауза 2мс - почти непрерывный поток
                     handler.postDelayed(() -> {
                         if (isEngineRunning) runStep(startX, startY);
-                    }, 4); // Чуть увеличили паузу для стабильности
+                    }, 2);
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
                     isEngineRunning = false; 
-                    targetVelocity = 0;
-                    lastStepValue = 0;
                 }
             }, null);
         } catch (Exception e) {
