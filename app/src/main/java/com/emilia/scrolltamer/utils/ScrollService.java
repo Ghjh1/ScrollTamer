@@ -28,19 +28,21 @@ public class ScrollService extends AccessibilityService {
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ДИНАМИЧЕСКИЙ ТОРМОЗ (Логарифмический)
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 2) {
-            targetVelocity *= 0.4f; // Гасим 60% скорости за каждый щелчок назад
-            if (Math.abs(targetVelocity) < 15) targetVelocity = 0; // "Якорь" на малых скоростях
+        // ХИРУРГИЧЕСКИЙ ТОРМОЗ: Любое движение против вектора = Мгновенный 0
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.1f) {
+            targetVelocity = 0;
+            lastStepValue = 0;
+            // Мы не выходим из метода, чтобы следующий клик в ту же сторону уже сработал, 
+            // но этот конкретный клик только гасит инерцию.
             return; 
         }
         
-        // ТУРБО-РАЗГОН: Чем быстрее летим, тем легче ускоряться
-        float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
-        targetVelocity += (strength * 105 * turbo); 
+        // ТУРБО-РАЗГОН (v95)
+        float turbo = 1.0f + (Math.abs(targetVelocity) / 400f);
+        targetVelocity += (strength * 110 * turbo); 
 
-        // Подняли планку максимума, раз ты хочешь летать быстрее
-        if (Math.abs(targetVelocity) > 3500) targetVelocity = Math.signum(targetVelocity) * 3500;
+        // Лимит для безопасности
+        if (Math.abs(targetVelocity) > 3800) targetVelocity = Math.signum(targetVelocity) * 3800;
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -49,16 +51,16 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.3f) {
+        if (Math.abs(targetVelocity) < 0.2f) {
             isEngineRunning = false;
             targetVelocity = 0;
             lastStepValue = 0;
             return;
         }
 
-        // Затухание (0.16) - сделали чуть более инерционным для "полёта"
+        // Затухание 0.16
         lastStepValue = targetVelocity * 0.16f; 
-        if (Math.abs(lastStepValue) > 160) lastStepValue = Math.signum(lastStepValue) * 160;
+        if (Math.abs(lastStepValue) > 170) lastStepValue = Math.signum(lastStepValue) * 170;
 
         targetVelocity -= lastStepValue;
 
@@ -66,7 +68,7 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
-        // 18мс - ювелирная мягкость (чуть быстрее отклик, чем в v94)
+        // 18мс - баланс мягкости
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 18);
         
         try {
@@ -75,10 +77,10 @@ public class ScrollService extends AccessibilityService {
                 public void onCompleted(GestureDescription gd) {
                     handler.postDelayed(() -> {
                         if (isEngineRunning) runStep(startX, startY);
-                    }, 3); 
+                    }, 2); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
-                    handler.postDelayed(() -> runStep(startX, startY), 5);
+                    isEngineRunning = false;
                 }
             }, null);
         } catch (Exception e) {
