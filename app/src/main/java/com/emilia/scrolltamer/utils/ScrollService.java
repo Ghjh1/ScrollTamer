@@ -10,7 +10,7 @@ import android.os.Looper;
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
-    private static long lockUntil = 0;
+    private static float lastStepValue = 0;
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -21,24 +21,22 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        return String.format("VELOCITY: %.2f\nACTIVE: %s\nLOCK: %dms", 
-                targetVelocity, isEngineRunning ? "YES" : "NO", Math.max(0, lockUntil - System.currentTimeMillis()));
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nENGINE: %s", 
+                targetVelocity, lastStepValue, isEngineRunning ? "ON" : "OFF");
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
-        long now = System.currentTimeMillis();
-        if (now < lockUntil) return;
 
-        // ПАРАЛЛЕЛЬНЫЙ ТОРМОЗ (АННИГИЛЯЦИЯ)
-        // Если знаки разные — это удар по тормозам
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 1f) {
-            targetVelocity = 0; 
-            lockUntil = now + 150; // Шлюз для пальца
-            // Мы не останавливаем engine, он сам "заглохнет" на следующем шаге, увидев 0
-            return;
+        // ПЕРЕСМОТРЕННЫЙ БРЕЙК: Математическая остановка
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 2) {
+            // Вместо обнуления даем противовес, чтобы "схлопнуть" инерцию
+            targetVelocity = -targetVelocity * 0.1f; 
+            if (Math.abs(targetVelocity) < 10) targetVelocity = 0;
+            return; 
         }
-
+        
+        // Турбо-разгон v95
         float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
         targetVelocity += (strength * 105 * turbo); 
 
@@ -46,40 +44,46 @@ public class ScrollService extends AccessibilityService {
 
         if (!isEngineRunning) {
             isEngineRunning = true;
-            instance.runStep(x, y);
+            instance.runStep(x, y); 
         }
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.2f) {
+        if (Math.abs(targetVelocity) < 0.3f) {
             isEngineRunning = false;
             targetVelocity = 0;
+            lastStepValue = 0;
             return;
         }
 
-        float step = targetVelocity * 0.16f;
-        if (Math.abs(step) > 160) step = Math.signum(step) * 160;
-        targetVelocity -= step;
+        // Параметры v95
+        lastStepValue = targetVelocity * 0.16f; 
+        if (Math.abs(lastStepValue) > 160) lastStepValue = Math.signum(lastStepValue) * 160;
+
+        targetVelocity -= lastStepValue;
 
         Path p = new Path();
         p.moveTo(startX, startY);
-        p.lineTo(startX, startY + step);
+        p.lineTo(startX, startY + lastStepValue);
 
-        // Используем минимально возможную длительность, чтобы быстрее освобождать очередь
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 12);
+        // 18мс и 3мс задержки — золотой стандарт твоего Redmi
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 18);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
                     handler.postDelayed(() -> {
-                        if (Math.abs(targetVelocity) > 0.1f) runStep(startX, startY);
-                        else isEngineRunning = false;
-                    }, 1); // Минимальная задержка для "плотности"
+                        if (isEngineRunning) runStep(startX, startY);
+                    }, 3); 
                 }
-                @Override public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
+                @Override public void onCancelled(GestureDescription gd) { 
+                    isEngineRunning = false; 
+                }
             }, null);
-        } catch (Exception e) { isEngineRunning = false; }
+        } catch (Exception e) {
+            isEngineRunning = false;
+        }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
