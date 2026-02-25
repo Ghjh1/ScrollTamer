@@ -31,17 +31,19 @@ public class ScrollService extends AccessibilityService {
         if (instance == null) return;
 
         long now = System.currentTimeMillis();
+        
+        // Если мы в "шлюзе" после тормоза — игнорируем палец
         if (now < lockUntil) return;
 
-        // ЖЕСТКИЙ ЯКОРЬ (v101)
+        // ИНТЕГРИРОВАННЫЙ БРЕЙК
         if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.5f) {
             targetVelocity = 0;
             lastStepValue = 0;
-            isEngineRunning = false; // Глушим мотор мгновенно
-            lockUntil = now + 150; 
+            lockUntil = now + 150; // Наш поглотитель инерции пальца
             return;
         }
         
+        // Турбо-разгон v95
         float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
         targetVelocity += (strength * 105 * turbo); 
 
@@ -54,10 +56,11 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        // Проверка на остановку или прерывание тормозом
-        if (Math.abs(targetVelocity) < 0.3f || !isEngineRunning) {
+        // Конвейер работает, пока есть скорость
+        if (Math.abs(targetVelocity) < 0.2f) {
             isEngineRunning = false;
             targetVelocity = 0;
+            lastStepValue = 0;
             return;
         }
 
@@ -66,6 +69,7 @@ public class ScrollService extends AccessibilityService {
 
         targetVelocity -= lastStepValue;
 
+        // ФИЗИЧЕСКИЙ СТОПОР: Если скорость обнулена тормозом, путь будет 0
         Path p = new Path();
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
@@ -77,11 +81,8 @@ public class ScrollService extends AccessibilityService {
                 @Override
                 public void onCompleted(GestureDescription gd) {
                     handler.postDelayed(() -> {
-                        // Если за время выполнения жеста случился тормоз (isEngineRunning стал false),
-                        // мы просто не запускаем следующий шаг.
-                        if (isEngineRunning) {
-                            runStep(startX, startY);
-                        }
+                        // Конвейер не прерывается, он просто проверяет скорость снова
+                        runStep(startX, startY);
                     }, 3); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
