@@ -11,7 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
     private static float lastStepValue = 0;
-    private static long brakeLockTime = 0; // Время, до которого действует шлюз
+    private static long lockUntil = 0;
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -22,31 +22,29 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        long timeLeft = Math.max(0, brakeLockTime - System.currentTimeMillis());
-        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nLOCK_MS: %d", 
+        long timeLeft = Math.max(0, lockUntil - System.currentTimeMillis());
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nLOCK: %dms", 
                 targetVelocity, lastStepValue, timeLeft);
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        long currentTime = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        
+        // 1. Если шлюз закрыт — игнорируем инерцию пальца
+        if (now < lockUntil) return;
 
-        // 1. ПРОВЕРКА ШЛЮЗА: Если мы в периоде поглощения инерции — игнорируем всё
-        if (currentTime < brakeLockTime) {
-            return;
-        }
-
-        // 2. УСИЛЕННЫЙ ТОРМОЗ: Исправляем просвист через мгновенную смену состояния
+        // 2. Логика ЯКОРЯ (на базе v95)
+        // Если крутим против движения — мгновенный стоп и шлюз на 150мс
         if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.5f) {
             targetVelocity = 0;
             lastStepValue = 0;
-            // Открываем шлюз на 350мс (оптимально для 1-10 щелчков)
-            brakeLockTime = currentTime + 350; 
+            lockUntil = now + 150; // Твои 150мс для "выпуска пара"
             return;
         }
         
-        // 3. ТУРБО-РАЗГОН (v95)
+        // 3. ТУРБО-РАЗГОН (v95 чистый)
         float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
         targetVelocity += (strength * 105 * turbo); 
 
@@ -66,6 +64,7 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
+        // Затухание v95
         lastStepValue = targetVelocity * 0.16f; 
         if (Math.abs(lastStepValue) > 160) lastStepValue = Math.signum(lastStepValue) * 160;
 
@@ -75,6 +74,7 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
+        // 18мс - мягкость v95
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 18);
         
         try {
@@ -86,7 +86,7 @@ public class ScrollService extends AccessibilityService {
                     }, 3); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
-                    isEngineRunning = false;
+                    handler.postDelayed(() -> runStep(startX, startY), 5);
                 }
             }, null);
         } catch (Exception e) {
