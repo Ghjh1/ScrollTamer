@@ -11,8 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float velocity = 0;
     private static boolean active = false;
-    private static long lastPulseTime = 0;
-    private static long lockUntil = 0; // Наш шлюз для тормоза
+    private static long lockUntil = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -21,26 +20,27 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        long wait = Math.max(0, lockUntil - System.currentTimeMillis());
-        return String.format("V: %.1f | LOCK: %dms", velocity, wait);
+        return String.format("V: %.1f | LOCK: %d", velocity, Math.max(0, lockUntil - System.currentTimeMillis()));
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
-
         long now = System.currentTimeMillis();
-        if (now < lockUntil) return; // Игнорируем инерцию пальца во время шлюза
+        if (now < lockUntil) return;
 
-        // ХИРУРГИЧЕСКИЙ ТОРМОЗ
+        // ЭКСТРЕННЫЙ СТОП НА ВЫСОКИХ ОБОРОТАХ
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             velocity = 0;
-            lockUntil = now + 150; // Включаем шлюз на 150мс
+            active = false; // Принудительно глушим движок
+            lockUntil = now + 150;
+            
+            // Отправляем жест-"заглушку" для очистки очереди
+            instance.killQueue(x, y);
             return;
         } 
         
         velocity += delta * 115;
-
-        if (Math.abs(velocity) > 3200) velocity = Math.signum(velocity) * 3200;
+        if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
         if (!active && Math.abs(velocity) > 0.5f) {
             active = true;
@@ -48,35 +48,34 @@ public class ScrollService extends AccessibilityService {
         }
     }
 
+    private void killQueue(float x, float y) {
+        Path p = new Path();
+        p.moveTo(x, y);
+        p.lineTo(x, y + 1); // Минимальное движение
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
+        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
+    }
+
     private void pulse(final float x, final float y) {
-        long now = System.currentTimeMillis();
-        
-        // Если скорость обнулена тормозом или сама упала - стоп
-        if (Math.abs(velocity) < 1.0f || now < lockUntil) {
+        if (Math.abs(velocity) < 1.0f || !active) {
             velocity = 0;
             active = false;
             return;
         }
 
-        if (now - lastPulseTime < 22) {
-            handler.postDelayed(() -> pulse(x, y), 5);
-            return;
-        }
-
         float step = velocity * 0.16f;
-        if (Math.abs(step) > 170) step = Math.signum(step) * 170;
+        if (Math.abs(step) > 175) step = Math.signum(step) * 175;
         velocity -= step;
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
-        lastPulseTime = now;
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 18);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            handler.postDelayed(() -> pulse(x, y), 20);
+            handler.postDelayed(() -> pulse(x, y), 22);
         } catch (Exception e) {
             active = false;
         }
