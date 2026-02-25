@@ -17,14 +17,18 @@ public class ScrollService extends AccessibilityService {
     @Override
     protected void onServiceConnected() { instance = this; }
 
+    // ВОЗВРАЩАЕМ МЕТОД (Исправление ошибки компиляции)
+    public static String getDebugData() {
+        return String.format("V: %.1f | %s", velocity, active ? "PIXEL_FLOW" : "IDLE");
+    }
+
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // Компенсация "вверх": если крутим вверх, чуть усиливаем импульс
-        float directionFactor = (delta < 0) ? 1.15f : 1.0f;
-        float input = delta * 55 * directionFactor;
+        float directionFactor = (delta < 0) ? 1.2f : 1.0f;
+        float input = delta * 50 * directionFactor;
 
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             velocity = 0; active = false;
@@ -33,8 +37,9 @@ public class ScrollService extends AccessibilityService {
             return;
         } 
 
-        if (Math.abs(velocity + input) < 250) {
-            velocity = input; // Ручной режим "Прямые руки"
+        // РУЧНОЙ РЕЖИМ (до 300 velocity)
+        if (Math.abs(velocity + input) < 300) {
+            velocity = input; 
         } else {
             velocity += input;
         }
@@ -46,27 +51,27 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 0.5f) {
+        if (!active || Math.abs(velocity) < 0.3f) {
             velocity = 0; active = false; return;
         }
 
-        float step = velocity * 0.12f;
         float sign = Math.signum(velocity);
+        // Делаем шаг попиксельным (минимум 1-2 пикселя)
+        float step = velocity * 0.10f;
+        if (Math.abs(step) < 2.0f) step = sign * 2.0f;
 
         Path path = new Path();
-        // ПЛАН "ПРЯМЫЕ РУКИ": Программный микро-зигзаг для взлома Slop
-        // Начинаем чуть-чуть в обратную сторону (-2px), затем основной ход
-        path.moveTo(x, y - (sign * 2)); 
+        // Взлом Touch Slop: микро-откат и уверенный пиксельный шаг
+        path.moveTo(x, y - (sign * 1)); 
         path.lineTo(x, y);
-        path.lineTo(x, y + step + (sign * 6)); // Основной шаг + микро-пробой
+        path.lineTo(x, y + step + (sign * 7)); // Пробой 7-8 пикселей
 
-        // Удлиняем время контакта, чтобы система "залипла" на движении
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 25);
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 20);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            velocity -= (step * 0.9f);
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 25);
+            velocity -= (step * 0.95f); // Очень медленное затухание для плавности
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 18); // Быстрые такты
         } catch (Exception e) { active = false; }
     }
 
