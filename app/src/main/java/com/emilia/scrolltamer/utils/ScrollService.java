@@ -11,6 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
     private static float lastStepValue = 0;
+    private static int brakeCounter = 0;
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -21,26 +22,32 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nACTIVE: %s", 
-                targetVelocity, lastStepValue, isEngineRunning ? "YES" : "NO");
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nACTIVE: %s\nBRAKE: %d", 
+                targetVelocity, lastStepValue, isEngineRunning ? "YES" : "NO", brakeCounter);
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ЖЕСТКИЙ ЯКОРЬ: Если крутим назад — мгновенная блокировка всего
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 1) {
-            targetVelocity = 0;
-            isEngineRunning = false;
-            // Мы не запускаем новый жест, пока не остановим старый
-            return; 
+        // ТОРМОЗНОЙ ПУТЬ (3 щелчка)
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 2) {
+            brakeCounter++;
+            if (brakeCounter == 1) targetVelocity *= 0.6f; // Гасим 40%
+            else if (brakeCounter == 2) targetVelocity *= 0.3f; // Гасим еще
+            else {
+                targetVelocity = 0; // Полный стоп на 3-й клик
+                brakeCounter = 0;
+            }
+            return;
         }
         
-        // Уменьшаем базовый импульс (было 130, стало 75) для короткого хода
-        targetVelocity += (strength * 75); 
+        // Сброс счетчика тормоза, если крутим в ту же сторону
+        brakeCounter = 0;
+        
+        // Импульс v91 (короткий ход)
+        targetVelocity += (strength * 80); 
 
-        // Ограничитель, чтобы "не улетать"
-        if (Math.abs(targetVelocity) > 1800) targetVelocity = Math.signum(targetVelocity) * 1800;
+        if (Math.abs(targetVelocity) > 2000) targetVelocity = Math.signum(targetVelocity) * 2000;
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -49,17 +56,16 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 0.3f) {
+        // Жесткий порог отсечки (0.5), чтобы приборы не "зависали"
+        if (Math.abs(targetVelocity) < 0.5f) {
             isEngineRunning = false;
             targetVelocity = 0;
+            lastStepValue = 0;
             return;
         }
 
-        // Делаем затухание более резким (0.25 вместо 0.18), чтобы список не "плыл" лишнего
-        lastStepValue = targetVelocity * 0.25f; 
-        
-        // Лимитируем физический размер одного "шага" пальца
-        if (Math.abs(lastStepValue) > 80) lastStepValue = Math.signum(lastStepValue) * 80;
+        lastStepValue = targetVelocity * 0.22f; 
+        if (Math.abs(lastStepValue) > 90) lastStepValue = Math.signum(lastStepValue) * 90;
 
         targetVelocity -= lastStepValue;
 
@@ -67,20 +73,21 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
-        // Укорачиваем контакт до 8мс — это почти мгновенный тычок
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 8);
+        // 15мс - возвращаем мягкость v90 (было 8мс)
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 15);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
-                    // Пауза всего 2мс — максимально плотный поток
                     handler.postDelayed(() -> {
                         if (isEngineRunning) runStep(startX, startY);
-                    }, 2);
+                    }, 4); // Чуть увеличили паузу для стабильности
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
                     isEngineRunning = false; 
+                    targetVelocity = 0;
+                    lastStepValue = 0;
                 }
             }, null);
         } catch (Exception e) {
