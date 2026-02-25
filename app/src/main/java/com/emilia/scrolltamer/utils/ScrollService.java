@@ -28,10 +28,10 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // ДИНАМИЧЕСКИЙ ТОРМОЗ (Шлифовка)
+        // ТОЧНАЯ ШЛИФОВКА ШЛЮЗОВ (v110)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            // Если скорость была низкой, палец точнее - шлюз короче
-            int brakeDuration = (Math.abs(velocity) < 400) ? 100 : 150;
+            // Динамические задержки по твоим чертежам
+            int brakeDuration = (Math.abs(velocity) < 400) ? 75 : 135;
             
             velocity = 0;
             active = false;
