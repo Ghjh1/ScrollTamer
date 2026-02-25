@@ -15,9 +15,7 @@ public class ScrollService extends AccessibilityService {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
-    protected void onServiceConnected() {
-        instance = this;
-    }
+    protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
         return String.format("V: %.1f | LOCK: %d", velocity, Math.max(0, lockUntil - System.currentTimeMillis()));
@@ -28,19 +26,18 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // ШЛИФОВКА v111: Планка 900 и 130мс
+        // ТОРМОЗ (База v111)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             int brakeDuration = (Math.abs(velocity) < 900) ? 75 : 130;
-            
             velocity = 0;
             active = false;
             lockUntil = now + brakeDuration;
-            
             instance.killQueue(x, y);
             return;
         } 
         
-        velocity += delta * 115;
+        // СИЛА ЩЕЛЧКА: Уменьшена вдвое (115 -> 55)
+        velocity += delta * 55;
         if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
         if (!active && Math.abs(velocity) > 0.5f) {
@@ -58,14 +55,14 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        // Жесткая проверка состояния перед каждым шагом
         if (!active || Math.abs(velocity) < 0.8f) {
             velocity = 0;
             active = false;
             return;
         }
 
-        float step = velocity * 0.16f;
+        // ЗАТУХАНИЕ: Сделали мягче (0.16 -> 0.12), чтобы компенсировать малую силу
+        float step = velocity * 0.12f;
         if (Math.abs(step) > 175) step = Math.signum(step) * 175;
         velocity -= step;
 
@@ -73,19 +70,16 @@ public class ScrollService extends AccessibilityService {
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
+        lastPulseTime = System.currentTimeMillis();
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 18);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            // Планируем следующий такт только если мы еще активны
-            handler.postDelayed(() -> {
-                if (active) pulse(x, y);
-            }, 22);
-        } catch (Exception e) {
-            active = false;
-        }
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
+        } catch (Exception e) { active = false; }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
     @Override public void onInterrupt() { instance = null; }
+    private static long lastPulseTime = 0;
 }
