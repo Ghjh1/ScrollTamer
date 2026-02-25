@@ -11,7 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float velocity = 0;
     private static boolean active = false;
-    private static int boostCycles = 0; // Счетчик тактов "пробоя"
+    private static int boostCycles = 0; 
     private static long lockUntil = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -19,7 +19,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | LOCK: %d", velocity, Math.max(0, lockUntil - System.currentTimeMillis()));
+        return String.format("V: %.1f | BOOST: %s", velocity, boostCycles > 0 ? "ON" : "OFF");
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -27,6 +27,7 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
+        // ТОРМОЗ (75/130мс)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             int brakeDuration = (Math.abs(velocity) < 900) ? 75 : 130;
             velocity = 0; active = false;
@@ -35,13 +36,22 @@ public class ScrollService extends AccessibilityService {
             return;
         } 
         
-        // Сила v112
-        velocity += delta * 55;
+        // ЛОГИКА "МАСЛЯНОГО ШАГА"
+        float input = delta * 55;
+        if (Math.abs(velocity + input) < 125) {
+            // Если скорость мала - обнуляем и даем только чистый импульс пробоя
+            velocity = input; 
+            boostCycles = 1; // Только один такт усиления
+        } else {
+            // На больших скоростях работаем как обычно
+            velocity += input;
+        }
+
         if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
-        if (!active && Math.abs(velocity) > 0.1f) {
+        if (!active) {
             active = true;
-            boostCycles = 2; // Заряжаем пробой на 2 такта
+            if (boostCycles == 0) boostCycles = 1; // Страховка старта
             instance.pulse(x, y);
         }
     }
@@ -58,20 +68,16 @@ public class ScrollService extends AccessibilityService {
             velocity = 0; active = false; return;
         }
 
-        // Затухание v112
         float step = velocity * 0.12f;
         
-        // ТОНКИЙ ПРОБОЙ
+        // ТОТ САМЫЙ ТОЛЧОК
         if (boostCycles > 0) {
-            // Добавляем всего 12 пикселей - это "золотое сечение" для Touch Slop
             step += (Math.signum(velocity) * 12);
             boostCycles--;
         }
 
         if (Math.abs(step) > 175) step = Math.signum(step) * 175;
-        
-        // Уменьшаем "штраф" к скорости, чтобы второй шаг не проваливался
-        velocity -= (step * 0.7f); 
+        velocity -= (step * 0.8f); 
 
         Path path = new Path();
         path.moveTo(x, y);
