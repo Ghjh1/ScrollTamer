@@ -28,10 +28,9 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // ТОЧНАЯ ШЛИФОВКА ШЛЮЗОВ (v110)
+        // ШЛИФОВКА v111: Планка 900 и 130мс
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            // Динамические задержки по твоим чертежам
-            int brakeDuration = (Math.abs(velocity) < 400) ? 75 : 135;
+            int brakeDuration = (Math.abs(velocity) < 900) ? 75 : 130;
             
             velocity = 0;
             active = false;
@@ -59,7 +58,8 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (Math.abs(velocity) < 1.0f || !active) {
+        // Жесткая проверка состояния перед каждым шагом
+        if (!active || Math.abs(velocity) < 0.8f) {
             velocity = 0;
             active = false;
             return;
@@ -77,7 +77,10 @@ public class ScrollService extends AccessibilityService {
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            handler.postDelayed(() -> pulse(x, y), 22);
+            // Планируем следующий такт только если мы еще активны
+            handler.postDelayed(() -> {
+                if (active) pulse(x, y);
+            }, 22);
         } catch (Exception e) {
             active = false;
         }
