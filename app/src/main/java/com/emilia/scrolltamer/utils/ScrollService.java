@@ -11,7 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
     private static float lastStepValue = 0;
-    private static int ignoreCounter = 0; // Наш поглотитель инерции пальца
+    private static int fingerBrakeBuffer = 0; // Буфер для инерции пальца
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -22,28 +22,28 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nIGNORE: %d", 
-                targetVelocity, lastStepValue, ignoreCounter);
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nFINGER_FREE: %d", 
+                targetVelocity, lastStepValue, fingerBrakeBuffer);
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ЛОГИКА ТОРМОЗА И ПОГЛОЩЕНИЯ
+        // ЛОГИКА ТОРМОЗА ДЛЯ ПАЛЬЦА
         if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.1f) {
-            targetVelocity = 0; // Мгновенный стоп содержимого
+            targetVelocity = 0; // Мгновенный стоп содержимого (как палец на экран)
             lastStepValue = 0;
-            ignoreCounter = 8; // Включаем "поглотитель" на следующие 8 щелчков
+            fingerBrakeBuffer = 10; // Даем 10 щелчков "свободного хода" для пальца
             return;
         }
         
-        // Если поглотитель активен — просто уменьшаем счетчик и ничего не делаем
-        if (ignoreCounter > 0) {
-            ignoreCounter--;
+        // Если палец еще "тормозит" по колесу, поглощаем импульсы
+        if (fingerBrakeBuffer > 0) {
+            fingerBrakeBuffer--;
             return;
         }
         
-        // ТУРБО-РАЗГОН из v95
+        // ТУРБО-РАЗГОН (v95)
         float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
         targetVelocity += (strength * 105 * turbo); 
 
@@ -63,6 +63,7 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
+        // Затухание (0.16) из v95
         lastStepValue = targetVelocity * 0.16f; 
         if (Math.abs(lastStepValue) > 160) lastStepValue = Math.signum(lastStepValue) * 160;
 
@@ -83,7 +84,7 @@ public class ScrollService extends AccessibilityService {
                     }, 3); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
-                    isEngineRunning = false;
+                    handler.postDelayed(() -> runStep(startX, startY), 5);
                 }
             }, null);
         } catch (Exception e) {
