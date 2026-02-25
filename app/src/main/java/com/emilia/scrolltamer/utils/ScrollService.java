@@ -28,15 +28,19 @@ public class ScrollService extends AccessibilityService {
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // РЕЖИМ ПОРТНОГО: Если крутим назад при движении вперед - полный СТОП
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 5) {
+        // ЖЕСТКИЙ ЯКОРЬ: Если крутим назад — мгновенная блокировка всего
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 1) {
             targetVelocity = 0;
-            lastStepValue = 0;
-            return; // Первый обратный щелчок просто останавливает поток
+            isEngineRunning = false;
+            // Мы не запускаем новый жест, пока не остановим старый
+            return; 
         }
         
-        targetVelocity += (strength * 130); 
-        if (Math.abs(targetVelocity) > 2200) targetVelocity = Math.signum(targetVelocity) * 2200;
+        // Уменьшаем базовый импульс (было 130, стало 75) для короткого хода
+        targetVelocity += (strength * 75); 
+
+        // Ограничитель, чтобы "не улетать"
+        if (Math.abs(targetVelocity) > 1800) targetVelocity = Math.signum(targetVelocity) * 1800;
 
         if (!isEngineRunning) {
             isEngineRunning = true;
@@ -45,15 +49,17 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void runStep(final float startX, final float startY) {
-        if (Math.abs(targetVelocity) < 1.0f) {
+        if (Math.abs(targetVelocity) < 0.3f) {
             isEngineRunning = false;
             targetVelocity = 0;
-            lastStepValue = 0;
             return;
         }
 
-        lastStepValue = targetVelocity * 0.18f; 
-        if (Math.abs(lastStepValue) > 130) lastStepValue = Math.signum(lastStepValue) * 130;
+        // Делаем затухание более резким (0.25 вместо 0.18), чтобы список не "плыл" лишнего
+        lastStepValue = targetVelocity * 0.25f; 
+        
+        // Лимитируем физический размер одного "шага" пальца
+        if (Math.abs(lastStepValue) > 80) lastStepValue = Math.signum(lastStepValue) * 80;
 
         targetVelocity -= lastStepValue;
 
@@ -61,15 +67,21 @@ public class ScrollService extends AccessibilityService {
         p.moveTo(startX, startY);
         p.lineTo(startX, startY + lastStepValue);
 
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
+        // Укорачиваем контакт до 8мс — это почти мгновенный тычок
+        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 8);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), new GestureResultCallback() {
                 @Override
                 public void onCompleted(GestureDescription gd) {
-                    handler.postDelayed(() -> runStep(startX, startY), 5);
+                    // Пауза всего 2мс — максимально плотный поток
+                    handler.postDelayed(() -> {
+                        if (isEngineRunning) runStep(startX, startY);
+                    }, 2);
                 }
-                @Override public void onCancelled(GestureDescription gd) { isEngineRunning = false; }
+                @Override public void onCancelled(GestureDescription gd) { 
+                    isEngineRunning = false; 
+                }
             }, null);
         } catch (Exception e) {
             isEngineRunning = false;
