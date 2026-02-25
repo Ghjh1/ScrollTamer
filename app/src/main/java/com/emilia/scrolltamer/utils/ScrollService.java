@@ -11,7 +11,7 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float targetVelocity = 0;
     private static float lastStepValue = 0;
-    private static int fingerBrakeBuffer = 0; // Буфер для инерции пальца
+    private static long brakeLockTime = 0; // Время, до которого действует шлюз
     private static boolean isEngineRunning = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -22,28 +22,31 @@ public class ScrollService extends AccessibilityService {
     }
 
     public static String getDebugData() {
-        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nFINGER_FREE: %d", 
-                targetVelocity, lastStepValue, fingerBrakeBuffer);
+        long timeLeft = Math.max(0, brakeLockTime - System.currentTimeMillis());
+        return String.format("VELOCITY: %.2f\nSTEP: %.2f\nLOCK_MS: %d", 
+                targetVelocity, lastStepValue, timeLeft);
     }
 
     public static void scroll(float strength, float x, float y) {
         if (instance == null) return;
 
-        // ЛОГИКА ТОРМОЗА ДЛЯ ПАЛЬЦА
-        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.1f) {
-            targetVelocity = 0; // Мгновенный стоп содержимого (как палец на экран)
+        long currentTime = System.currentTimeMillis();
+
+        // 1. ПРОВЕРКА ШЛЮЗА: Если мы в периоде поглощения инерции — игнорируем всё
+        if (currentTime < brakeLockTime) {
+            return;
+        }
+
+        // 2. УСИЛЕННЫЙ ТОРМОЗ: Исправляем просвист через мгновенную смену состояния
+        if (Math.signum(strength) != Math.signum(targetVelocity) && Math.abs(targetVelocity) > 0.5f) {
+            targetVelocity = 0;
             lastStepValue = 0;
-            fingerBrakeBuffer = 10; // Даем 10 щелчков "свободного хода" для пальца
+            // Открываем шлюз на 350мс (оптимально для 1-10 щелчков)
+            brakeLockTime = currentTime + 350; 
             return;
         }
         
-        // Если палец еще "тормозит" по колесу, поглощаем импульсы
-        if (fingerBrakeBuffer > 0) {
-            fingerBrakeBuffer--;
-            return;
-        }
-        
-        // ТУРБО-РАЗГОН (v95)
+        // 3. ТУРБО-РАЗГОН (v95)
         float turbo = 1.0f + (Math.abs(targetVelocity) / 450f);
         targetVelocity += (strength * 105 * turbo); 
 
@@ -63,7 +66,6 @@ public class ScrollService extends AccessibilityService {
             return;
         }
 
-        // Затухание (0.16) из v95
         lastStepValue = targetVelocity * 0.16f; 
         if (Math.abs(lastStepValue) > 160) lastStepValue = Math.signum(lastStepValue) * 160;
 
@@ -84,7 +86,7 @@ public class ScrollService extends AccessibilityService {
                     }, 3); 
                 }
                 @Override public void onCancelled(GestureDescription gd) { 
-                    handler.postDelayed(() -> runStep(startX, startY), 5);
+                    isEngineRunning = false;
                 }
             }, null);
         } catch (Exception e) {
