@@ -7,37 +7,39 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private static float testLimit = 10.0f; // Начинаем с 10
+    private static float testDist = 14.0f; 
+    private static int testTime = 100;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("CALIBRATION MODE | CURRENT LIMIT: %.1f", testLimit);
+        return String.format("LAB: Dist=%.0fpx | Time=%dms", testDist, testTime);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        // Если крутим ВВЕРХ (delta < 0) - увеличиваем порог для поиска
-        if (delta < 0) {
-            testLimit += 2.0f;
-            if (testLimit > 150) testLimit = 10; // Сброс если ушли далеко
+        // ЛОГИКА ТЕСТЕРА:
+        if (delta < 0) { // Крутим вверх - меняем расстояние
+            testDist += 1.0f;
+            if (testDist > 100) testDist = 10;
+        } else { // Крутим вниз - меняем время (делаем жест быстрее)
+            testTime -= 10;
+            if (testTime < 10) testTime = 200;
         }
+        
+        // Автоматический тест при каждом движении, чтобы сразу видеть результат
+        runTest(x, y);
+    }
 
-        // Если крутим ВНИЗ (delta > 0) - выполняем тестовый удар текущим лимитом
-        if (delta > 0) {
-            Path path = new Path();
-            path.moveTo(x, y);
-            path.lineTo(x, y + testLimit);
+    private static void runTest(float x, float y) {
+        Path path = new Path();
+        path.moveTo(x, y);
+        path.lineTo(x, y + testDist);
 
-            // Время ставим побольше (100мс), чтобы убрать эффект "выстрела" и инерцию системы
-            GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 100);
-            
-            try {
-                instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            } catch (Exception e) { }
-        }
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, testTime);
+        instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
