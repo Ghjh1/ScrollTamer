@@ -12,23 +12,22 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return "DIAGNOSTIC MODE: RAW 10PX";
+        return "DIAGNOSTIC MODE: RAW 70PX";
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
         float sign = Math.signum(delta);
-        // Чистый, прямой шаг на 10 пикселей. 
-        // Это наше "нулевое" измерение.
-        float testStep = sign * 10.0f; 
+        // Проверяем твою догадку про 50-70 пикселей
+        float testStep = sign * 70.0f; 
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + testStep);
 
-        // Длительность 50мс - это стандартный "уверенный" жест пальцем.
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 50);
+        // 30мс - быстрый и уверенный жест
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 30);
         
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
