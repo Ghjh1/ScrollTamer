@@ -17,14 +17,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Используем простую разметку без списков, чтобы не воровать фокус
         setContentView(R.layout.activity_main);
 
         debugInfo = findViewById(R.id.debug_info);
         editDist = findViewById(R.id.edit_dist);
         editTime = findViewById(R.id.edit_time);
 
-        // Слушатели, которые передают цифры в сервис
         TextWatcher tw = new TextWatcher() {
             public void afterTextChanged(Editable s) { 
                 try {
