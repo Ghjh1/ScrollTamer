@@ -2,35 +2,28 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
-    android:orientation="vertical"
-    android:padding="10dp">
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <EditText android:id="@+id/edit_dist"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF" android:hint="D (14.0)"
-            android:textColorHint="#444444" android:inputType="numberDecimal"
-            android:text="14.0"/>
-
-        <EditText android:id="@+id/edit_time"
-            android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF" android:hint="T (100)"
-            android:textColorHint="#444444" android:inputType="number"
-            android:text="100"/>
+        android:background="#EEEEEE"
+        android:padding="5dp">
+        <EditText android:id="@+id/edit_dist" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="14.0" android:inputType="numberDecimal" android:hint="D"/>
+        <EditText android:id="@+id/edit_time" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="100" android:inputType="number" android:hint="T"/>
     </LinearLayout>
+
+    <ListView
+        android:id="@+id/test_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <TextView android:id="@+id/debug_info"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
+        android:layout_height="wrap_content"
+        android:background="#000000"
         android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:text="Waiting..."/>
+        android:padding="5dp"
+        android:text="Status..."/>
 </LinearLayout>
