@@ -7,42 +7,35 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private static float testLimit = 14.0f; 
+    private static float testDist = 14.0f; 
     private static int testTime = 100;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static void setParams(float d, int t) {
-        if (d >= 0) testLimit = d;
+        if (d >= 0) testDist = d;
         if (t > 0) testTime = t;
     }
 
     public static String getDebugData() {
-        return String.format("D: %.1f px | T: %d ms", testLimit, testTime);
+        return String.format("D: %.1f px | T: %d ms", testDist, testTime);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        // Логика v131: Колесо вверх меняет лимит
-        if (delta < 0) {
-            testLimit += 1.0f;
-            if (testLimit > 200) testLimit = 1;
-        }
+        float direction = Math.signum(delta);
+        Path path = new Path();
+        path.moveTo(x, y);
+        path.lineTo(x, y + (testDist * direction));
 
-        // Колесо вниз (или любое движение, если лимит уже найден) — делает шаг
-        if (delta > 0) {
-            Path path = new Path();
-            path.moveTo(x, y);
-            path.lineTo(x, y + testLimit);
-
-            GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, Math.max(10, testTime));
-            
-            try {
-                instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            } catch (Exception e) { }
-        }
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(
+            path, 0, Math.max(10, testTime));
+        
+        try {
+            instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+        } catch (Exception e) { }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
