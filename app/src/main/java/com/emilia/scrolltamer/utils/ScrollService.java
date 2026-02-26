@@ -7,32 +7,34 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private static float testLimit = 14.0f; 
+    private static float testLimit = 14.0f;
+    private static int testTime = 100;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
+    public static void setParams(float d, int t) {
+        testLimit = d;
+        if (t > 0) testTime = t;
+    }
+
     public static String getDebugData() {
-        return String.format("CALIBRATION MODE | CURRENT LIMIT: %.1f", testLimit);
+        return String.format("D: %.1f | T: %d ms", testLimit, testTime);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        // Если крутим ВВЕРХ (delta < 0) - увеличиваем порог
-        if (delta < 0) {
+        if (delta < 0) { // Вверх - калибруем как в v131
             testLimit += 1.0f;
-            if (testLimit > 150) testLimit = 10;
+            if (testLimit > 200) testLimit = 1;
         }
 
-        // Если крутим ВНИЗ (delta > 0) - выполняем тестовый удар
-        if (delta > 0) {
+        if (delta > 0) { // Вниз - тот самый победный удар
             Path path = new Path();
             path.moveTo(x, y);
             path.lineTo(x, y + testLimit);
-
-            GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 100);
-            
+            GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, testTime);
             try {
                 instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
             } catch (Exception e) { }
