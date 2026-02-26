@@ -4,14 +4,15 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.*;
 import android.os.Handler;
 import com.emilia.scrolltamer.utils.ScrollService;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     private TextView debugInfo;
     private EditText editDist, editTime;
+    private ListView testList;
     private final Handler handler = new Handler();
 
     @Override
@@ -22,30 +23,32 @@ public class MainActivity extends Activity {
         debugInfo = findViewById(R.id.debug_info);
         editDist = findViewById(R.id.edit_dist);
         editTime = findViewById(R.id.edit_time);
+        testList = findViewById(R.id.test_list);
 
-        // Устанавливаем начальные значения в поля ввода
-        editDist.setText("14");
-        editTime.setText("100");
+        // Наполняем список тестовыми данными
+        ArrayList<String> items = new ArrayList<>();
+        for (int i = 1; i <= 200; i++) items.add("Строка тестового списка №" + i);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, items);
+        testList.setAdapter(adapter);
 
-        // Слушатель для дистанции
-        editDist.addTextChangedListener(new TextWatcher() {
-            public void afterTextChanged(Editable s) {
-                try { ScrollService.setParams(Float.parseFloat(s.toString()), -1); } catch(Exception e){}
-            }
+        // Слушатели ввода
+        TextWatcher tw = new TextWatcher() {
+            public void afterTextChanged(Editable s) { updateParams(); }
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             public void onTextChanged(CharSequence s, int start, int before, int count) {}
-        });
-
-        // Слушатель для времени
-        editTime.addTextChangedListener(new TextWatcher() {
-            public void afterTextChanged(Editable s) {
-                try { ScrollService.setParams(-1, Integer.parseInt(s.toString())); } catch(Exception e){}
-            }
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
-        });
+        };
+        editDist.addTextChangedListener(tw);
+        editTime.addTextChangedListener(tw);
 
         startDebugUpdate();
+    }
+
+    private void updateParams() {
+        try {
+            float d = Float.parseFloat(editDist.getText().toString());
+            int t = Integer.parseInt(editTime.getText().toString());
+            ScrollService.setParams(d, t);
+        } catch(Exception e) {}
     }
 
     private void startDebugUpdate() {
