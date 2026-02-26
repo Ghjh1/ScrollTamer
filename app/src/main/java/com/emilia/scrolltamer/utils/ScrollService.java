@@ -12,27 +12,23 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return "CLEAN SLATE MODE | RAW INPUT";
+        return "DIAGNOSTIC MODE: RAW 10PX";
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
         float sign = Math.signum(delta);
-        
-        // ТЕОРЕТИЧЕСКИЙ ПУТЬ ПРОБОЯ (Тот самый X)
-        // Давай начнем с 12 пикселей. Если не сдвинется - будем поднимать.
-        float bypass = sign * 12.0f; 
-        float target = sign * 1.0f; // Наш заветный 1 пиксель
+        // Чистый, прямой шаг на 10 пикселей. 
+        // Это наше "нулевое" измерение.
+        float testStep = sign * 10.0f; 
 
         Path path = new Path();
-        path.moveTo(x, y);            // Точка А (Старт)
-        path.lineTo(x, y - bypass);   // Точка Б (Программный замах - ВЗЛОМ)
-        path.lineTo(x, y + target);   // Точка В (Финальная позиция - ЦЕЛЬ)
+        path.moveTo(x, y);
+        path.lineTo(x, y + testStep);
 
-        // Один-единственный "выстрел". Без повторов. 
-        // Время 20мс - чтобы система успела заметить вектор, но не успела отрисовать откат.
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 20);
+        // Длительность 50мс - это стандартный "уверенный" жест пальцем.
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 50);
         
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
