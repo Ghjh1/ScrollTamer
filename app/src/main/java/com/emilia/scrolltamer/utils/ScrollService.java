@@ -18,7 +18,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | DUAL_KICK", velocity);
+        return String.format("V: %.1f | PIXEL_FIX", velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,7 +26,7 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        float input = delta * 50;
+        float input = delta * 45;
         if (Math.abs(input) < 150) { velocity = input; } 
         else { velocity += input; }
 
@@ -42,20 +42,20 @@ public class ScrollService extends AccessibilityService {
         }
 
         float sign = Math.signum(velocity);
-        float bypass = sign * 12.0f; // Увеличили пробой для верности
-        float targetStep = sign * 1.5f;
+        float bypass = sign * 11.0f; // Силовой взлом замка
+        float target = sign * 1.5f;  // Реальное смещение, которое мы хотим увидеть
 
-        // ЖЕСТ 1: Взлом (Назад)
+        // ЖЕСТ 1: ВЗЛОМ (Резко назад)
         Path p1 = new Path();
         p1.moveTo(x, y);
         p1.lineTo(x, y - bypass);
-        GestureDescription.StrokeDescription stroke1 = new GestureDescription.StrokeDescription(p1, 0, 10);
+        GestureDescription.StrokeDescription stroke1 = new GestureDescription.StrokeDescription(p1, 0, 7);
 
-        // ЖЕСТ 2: Движение (Вперед + Микро-шаг)
+        // ЖЕСТ 2: ВЫХОД (Из точки взлома в точку +1.5 от СТАРТА)
         Path p2 = new Path();
         p2.moveTo(x, y - bypass);
-        p2.lineTo(x, y + targetStep);
-        GestureDescription.StrokeDescription stroke2 = new GestureDescription.StrokeDescription(p2, 11, 15); // Стартует сразу после первого
+        p2.lineTo(x, y + target); // Идем мимо старта прямо в цель
+        GestureDescription.StrokeDescription stroke2 = new GestureDescription.StrokeDescription(p2, 8, 12);
 
         GestureDescription.Builder builder = new GestureDescription.Builder();
         builder.addStroke(stroke1);
@@ -63,8 +63,8 @@ public class ScrollService extends AccessibilityService {
         
         try {
             dispatchGesture(builder.build(), null, null);
-            velocity -= (velocity * 0.9f);
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 35);
+            velocity -= (velocity * 0.92f); // Гасим инерцию для пошаговости
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 30);
         } catch (Exception e) { active = false; }
     }
 
