@@ -18,20 +18,31 @@
     </ScrollView>
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:id="@+id/controls"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
+        android:background="#CC000000"
+        android:orientation="horizontal"
+        android:padding="5dp">
+
+        <EditText android:id="@+id/edit_d" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="14.0" android:textColor="#00FF00" android:inputType="numberDecimal" android:textSize="14sp"/>
+        <EditText android:id="@+id/edit_t" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="100" android:textColor="#00FF00" android:inputType="number" android:textSize="14sp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/controls"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="40dp"
         android:background="#AA000000"
         android:padding="10dp"
         android:orientation="vertical">
-        
         <TextView
             android:id="@+id/debug_info"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Waiting for data..."
+            android:text="Waiting..."
             android:textColor="#00FF00"
             android:fontFamily="monospace"
             android:textSize="14sp" />
