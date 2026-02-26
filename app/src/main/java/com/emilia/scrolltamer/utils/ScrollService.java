@@ -18,7 +18,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | %s", velocity, active ? "FLOW" : "IDLE");
+        return String.format("V: %.1f | PIXEL_MODE", velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,19 +26,9 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // Коррекция направлений (Redmi любит чуть больше силы вверх)
-        float directionFactor = (delta < 0) ? 1.25f : 1.0f;
-        float input = delta * 55 * directionFactor;
-
-        // Тормоз
-        if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            velocity = 0; active = false;
-            lockUntil = now + (Math.abs(velocity) < 900 ? 75 : 130);
-            instance.killQueue(x, y);
-            return;
-        } 
-
-        // Стабилизация: в ручном режиме просто держим входную скорость
+        // В ручном режиме (малые скорости) работаем через реверс
+        float input = delta * 45; // Чуть снизили базу для контроля
+        
         if (Math.abs(input) < 150) {
             velocity = input; 
         } else {
@@ -52,29 +42,35 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 0.5f) {
+        if (!active || Math.abs(velocity) < 0.4f) {
             velocity = 0; active = false; return;
         }
 
         float sign = Math.signum(velocity);
-        float step = velocity * 0.12f;
-
-        // Прямой пробой без зигзага (бережем Redmi)
-        // Мы просто делаем жест чуть длиннее самого смещения
-        float visualStep = step;
-        float internalPush = sign * 9; // Фиксированный пробой порога
+        // Наш заветный 1 пиксель чистого смещения
+        float targetStep = sign * 1.5f; 
+        
+        // РЕВЕРСИВНЫЙ МАХ: 
+        // 1. Откатываемся на 10px назад (пробой защиты)
+        // 2. Возвращаемся и проезжаем на targetStep вперед
+        float slopBypass = sign * 10.0f;
 
         Path path = new Path();
         path.moveTo(x, y);
-        path.lineTo(x, y + visualStep + internalPush);
+        path.lineTo(x, y - slopBypass); // Рывок назад
+        path.lineTo(x, y + targetStep); // Мягкий выход в +1.5 пикселя
 
-        // Длительность 10мс - это "выстрел", система не успеет распознать это как дрожание
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 12);
+        // Общее время жеста 25мс, чтобы Redmi успевал отрисовать
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 25);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            velocity -= (step * 0.9f);
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
+            
+            // Расход скорости: в ручном режиме гасим почти всё сразу для пошаговости
+            velocity -= (velocity * 0.9f); 
+            
+            // Пауза между "качелями", чтобы не перегреть графический чип
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 30);
         } catch (Exception e) { active = false; }
     }
 
