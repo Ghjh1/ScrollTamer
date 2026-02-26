@@ -1,9 +1,12 @@
 package com.emilia.scrolltamer.utils;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.MotionEvent;
+import android.view.InputDevice;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
@@ -11,7 +14,14 @@ public class ScrollService extends AccessibilityService {
     private static int testTime = 100;
 
     @Override
-    protected void onServiceConnected() { instance = this; }
+    protected void onServiceConnected() {
+        instance = this;
+        AccessibilityServiceInfo info = getServiceInfo();
+        // Убеждаемся, что мы ловим события из всех приложений, включая свое
+        info.flags |= AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
+        info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+        setServiceInfo(info);
+    }
 
     public static void setParams(float d, int t) {
         if (d > 0) testDist = d;
@@ -27,7 +37,8 @@ public class ScrollService extends AccessibilityService {
         
         Path path = new Path();
         path.moveTo(x, y);
-        path.lineTo(x, y + (testDist * Math.signum(delta)));
+        float direction = Math.signum(delta);
+        path.lineTo(x, y + (testDist * direction));
 
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(
             path, 0, Math.max(10, testTime));
