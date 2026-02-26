@@ -2,27 +2,19 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="10dp">
+    android:orientation="vertical">
 
     <LinearLayout 
         android:layout_width="match_parent" 
         android:layout_height="wrap_content" 
         android:orientation="horizontal"
-        android:gravity="center">
-        
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="D (px):" />
-        <EditText android:id="@+id/edit_dist" android:layout_width="70dp" android:layout_height="wrap_content" android:inputType="numberDecimal" android:text="14.0"/>
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" T (ms):" android:layout_marginLeft="15dp"/>
-        <EditText android:id="@+id/edit_time" android:layout_width="70dp" android:layout_height="wrap_content" android:inputType="number" android:text="100"/>
+        android:padding="5dp">
+        <EditText android:id="@+id/edit_dist" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:hint="Dist (14)" android:inputType="numberDecimal"/>
+        <EditText android:id="@+id/edit_time" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:hint="Time (100)" android:inputType="number"/>
     </LinearLayout>
 
     <ListView 
         android:id="@+id/test_list" 
         android:layout_width="match_parent" 
-        android:layout_height="match_parent" 
-        android:layout_marginTop="10dp"
-        android:divider="#CCCCCC"
-        android:dividerHeight="1dp"/>
+        android:layout_height="match_parent" />
 </LinearLayout>
