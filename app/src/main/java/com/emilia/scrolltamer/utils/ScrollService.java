@@ -17,9 +17,8 @@ public class ScrollService extends AccessibilityService {
     @Override
     protected void onServiceConnected() { instance = this; }
 
-    // ВОЗВРАЩАЕМ МЕТОД (Исправление ошибки компиляции)
     public static String getDebugData() {
-        return String.format("V: %.1f | %s", velocity, active ? "PIXEL_FLOW" : "IDLE");
+        return String.format("V: %.1f | %s", velocity, active ? "FLOW" : "IDLE");
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -27,9 +26,11 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        float directionFactor = (delta < 0) ? 1.2f : 1.0f;
-        float input = delta * 50 * directionFactor;
+        // Коррекция направлений (Redmi любит чуть больше силы вверх)
+        float directionFactor = (delta < 0) ? 1.25f : 1.0f;
+        float input = delta * 55 * directionFactor;
 
+        // Тормоз
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             velocity = 0; active = false;
             lockUntil = now + (Math.abs(velocity) < 900 ? 75 : 130);
@@ -37,8 +38,8 @@ public class ScrollService extends AccessibilityService {
             return;
         } 
 
-        // РУЧНОЙ РЕЖИМ (до 300 velocity)
-        if (Math.abs(velocity + input) < 300) {
+        // Стабилизация: в ручном режиме просто держим входную скорость
+        if (Math.abs(input) < 150) {
             velocity = input; 
         } else {
             velocity += input;
@@ -51,27 +52,29 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 0.3f) {
+        if (!active || Math.abs(velocity) < 0.5f) {
             velocity = 0; active = false; return;
         }
 
         float sign = Math.signum(velocity);
-        // Делаем шаг попиксельным (минимум 1-2 пикселя)
-        float step = velocity * 0.10f;
-        if (Math.abs(step) < 2.0f) step = sign * 2.0f;
+        float step = velocity * 0.12f;
+
+        // Прямой пробой без зигзага (бережем Redmi)
+        // Мы просто делаем жест чуть длиннее самого смещения
+        float visualStep = step;
+        float internalPush = sign * 9; // Фиксированный пробой порога
 
         Path path = new Path();
-        // Взлом Touch Slop: микро-откат и уверенный пиксельный шаг
-        path.moveTo(x, y - (sign * 1)); 
-        path.lineTo(x, y);
-        path.lineTo(x, y + step + (sign * 7)); // Пробой 7-8 пикселей
+        path.moveTo(x, y);
+        path.lineTo(x, y + visualStep + internalPush);
 
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 20);
+        // Длительность 10мс - это "выстрел", система не успеет распознать это как дрожание
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 12);
         
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            velocity -= (step * 0.95f); // Очень медленное затухание для плавности
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 18); // Быстрые такты
+            velocity -= (step * 0.9f);
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
         } catch (Exception e) { active = false; }
     }
 
