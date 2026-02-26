@@ -14,12 +14,12 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        EditText edD = findViewById(R.id.edit_dist);
-        EditText edT = findViewById(R.id.edit_time);
+        final EditText edD = findViewById(R.id.edit_dist);
+        final EditText edT = findViewById(R.id.edit_time);
         ListView lv = findViewById(R.id.test_list);
 
         ArrayList<String> items = new ArrayList<>();
-        for (int i = 1; i <= 500; i++) items.add("Строка теста " + i);
+        for (int i = 1; i <= 500; i++) items.add("Строка №" + i + " — ТЕСТОВАЯ ЗОНА");
         lv.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, items));
 
         TextWatcher tw = new TextWatcher() {

@@ -8,9 +8,12 @@
         android:layout_width="match_parent" 
         android:layout_height="wrap_content" 
         android:orientation="horizontal"
-        android:padding="5dp">
-        <EditText android:id="@+id/edit_dist" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:hint="Dist (14)" android:inputType="numberDecimal"/>
-        <EditText android:id="@+id/edit_time" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:hint="Time (100)" android:inputType="number"/>
+        android:background="#EEEEEE"
+        android:padding="10dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="D: "/>
+        <EditText android:id="@+id/edit_dist" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="14.0" android:inputType="numberDecimal"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" T: "/>
+        <EditText android:id="@+id/edit_time" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="100" android:inputType="number"/>
     </LinearLayout>
 
     <ListView 
