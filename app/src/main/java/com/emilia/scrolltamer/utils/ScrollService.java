@@ -13,32 +13,28 @@ public class ScrollService extends AccessibilityService {
     @Override
     protected void onServiceConnected() { instance = this; }
 
+    // Теперь это единственный способ изменить параметры
     public static void setParams(float d, int t) {
         testLimit = d;
         if (t > 0) testTime = t;
     }
 
     public static String getDebugData() {
-        return String.format("D: %.1f | T: %d ms", testLimit, testTime);
+        return String.format("READY | D: %.1f | T: %d ms", testLimit, testTime);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        if (delta < 0) {
-            testLimit += 1.0f; // Сделал шаг 1.0 для точности, как ты просил
-            if (testLimit > 150) testLimit = 10;
-        }
+        // Теперь любое движение колеса (delta != 0) выполняет жест с твоими цифрами
+        Path path = new Path();
+        path.moveTo(x, y);
+        path.lineTo(x, y + testLimit);
 
-        if (delta > 0) {
-            Path path = new Path();
-            path.moveTo(x, y);
-            path.lineTo(x, y + testLimit);
-            GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, testTime);
-            try {
-                instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            } catch (Exception e) { }
-        }
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, testTime);
+        try {
+            instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+        } catch (Exception e) { }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
