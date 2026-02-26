@@ -7,32 +7,33 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private static float testLimit = 14.0f;
-    private static int testTime = 100;
+    private static float testLimit = 13.0f;
+    private static int testTime = 40;
+    private static int testDelay = 0;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
-    // Метод для установки точных значений из диалога
-    public static void setParams(float d, int t) {
+    public static void setParams(float d, int t, int delay) {
         testLimit = d;
         if (t > 0) testTime = t;
+        if (delay >= 0) testDelay = delay;
     }
 
     public static String getDebugData() {
-        return String.format("FIXED MODE | D: %.1f | T: %d ms", testLimit, testTime);
+        return String.format("D: %.1f | T: %d | Delay: %d", testLimit, testTime, testDelay);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        // Любое движение колеса теперь просто вызывает жест
-        // Без изменения testLimit
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + testLimit);
 
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, testTime);
+        // Используем testDelay перед началом движения
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, testDelay, testTime);
+        
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
         } catch (Exception e) { }
