@@ -18,7 +18,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | PIXEL_MODE", velocity);
+        return String.format("V: %.1f | DUAL_KICK", velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,14 +26,9 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // В ручном режиме (малые скорости) работаем через реверс
-        float input = delta * 45; // Чуть снизили базу для контроля
-        
-        if (Math.abs(input) < 150) {
-            velocity = input; 
-        } else {
-            velocity += input;
-        }
+        float input = delta * 50;
+        if (Math.abs(input) < 150) { velocity = input; } 
+        else { velocity += input; }
 
         if (!active && Math.abs(velocity) > 0.1f) {
             active = true;
@@ -47,30 +42,29 @@ public class ScrollService extends AccessibilityService {
         }
 
         float sign = Math.signum(velocity);
-        // Наш заветный 1 пиксель чистого смещения
-        float targetStep = sign * 1.5f; 
-        
-        // РЕВЕРСИВНЫЙ МАХ: 
-        // 1. Откатываемся на 10px назад (пробой защиты)
-        // 2. Возвращаемся и проезжаем на targetStep вперед
-        float slopBypass = sign * 10.0f;
+        float bypass = sign * 12.0f; // Увеличили пробой для верности
+        float targetStep = sign * 1.5f;
 
-        Path path = new Path();
-        path.moveTo(x, y);
-        path.lineTo(x, y - slopBypass); // Рывок назад
-        path.lineTo(x, y + targetStep); // Мягкий выход в +1.5 пикселя
+        // ЖЕСТ 1: Взлом (Назад)
+        Path p1 = new Path();
+        p1.moveTo(x, y);
+        p1.lineTo(x, y - bypass);
+        GestureDescription.StrokeDescription stroke1 = new GestureDescription.StrokeDescription(p1, 0, 10);
 
-        // Общее время жеста 25мс, чтобы Redmi успевал отрисовать
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 25);
+        // ЖЕСТ 2: Движение (Вперед + Микро-шаг)
+        Path p2 = new Path();
+        p2.moveTo(x, y - bypass);
+        p2.lineTo(x, y + targetStep);
+        GestureDescription.StrokeDescription stroke2 = new GestureDescription.StrokeDescription(p2, 11, 15); // Стартует сразу после первого
+
+        GestureDescription.Builder builder = new GestureDescription.Builder();
+        builder.addStroke(stroke1);
+        builder.addStroke(stroke2);
         
         try {
-            dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            
-            // Расход скорости: в ручном режиме гасим почти всё сразу для пошаговости
-            velocity -= (velocity * 0.9f); 
-            
-            // Пауза между "качелями", чтобы не перегреть графический чип
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 30);
+            dispatchGesture(builder.build(), null, null);
+            velocity -= (velocity * 0.9f);
+            handler.postDelayed(() -> { if (active) pulse(x, y); }, 35);
         } catch (Exception e) { active = false; }
     }
 
