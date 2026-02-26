@@ -11,24 +11,21 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float velocity = 0;
     private static boolean active = false;
-    private static long lockUntil = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | PIXEL_FIX", velocity);
+        return String.format("V: %.1f | PIXEL_LOCK", velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
-        long now = System.currentTimeMillis();
-        if (now < lockUntil) return;
-
-        float input = delta * 45;
-        if (Math.abs(input) < 150) { velocity = input; } 
-        else { velocity += input; }
+        
+        // В ручном режиме (малые скорости) один щелчок = один чистый импульс
+        float input = delta * 30; // Еще меньше база для контроля
+        velocity = input; 
 
         if (!active && Math.abs(velocity) > 0.1f) {
             active = true;
@@ -37,34 +34,28 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 0.4f) {
-            velocity = 0; active = false; return;
-        }
+        if (!active) return;
 
         float sign = Math.signum(velocity);
-        float bypass = sign * 11.0f; // Силовой взлом замка
-        float target = sign * 1.5f;  // Реальное смещение, которое мы хотим увидеть
+        float slopBypass = sign * 14.0f; // Увеличим "виртуальный" рывок для пробоя
+        float realStep = sign * 1.0f;    // ТОТ САМЫЙ ОДИН ПИКСЕЛЬ
 
-        // ЖЕСТ 1: ВЗЛОМ (Резко назад)
-        Path p1 = new Path();
-        p1.moveTo(x, y);
-        p1.lineTo(x, y - bypass);
-        GestureDescription.StrokeDescription stroke1 = new GestureDescription.StrokeDescription(p1, 0, 7);
+        Path path = new Path();
+        // Взламываем систему: 
+        // 1. Старт
+        path.moveTo(x, y);
+        // 2. Мгновенная точка пробоя (она не должна отрисоваться как движение)
+        path.lineTo(x, y - slopBypass);
+        // 3. Целевая точка: всего +1 пиксель от старта
+        path.lineTo(x, y + realStep);
 
-        // ЖЕСТ 2: ВЫХОД (Из точки взлома в точку +1.5 от СТАРТА)
-        Path p2 = new Path();
-        p2.moveTo(x, y - bypass);
-        p2.lineTo(x, y + target); // Идем мимо старта прямо в цель
-        GestureDescription.StrokeDescription stroke2 = new GestureDescription.StrokeDescription(p2, 8, 12);
-
-        GestureDescription.Builder builder = new GestureDescription.Builder();
-        builder.addStroke(stroke1);
-        builder.addStroke(stroke2);
+        // Ставим короткое время (15мс), чтобы Android "проглотил" это как один чих
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 15);
         
         try {
-            dispatchGesture(builder.build(), null, null);
-            velocity -= (velocity * 0.92f); // Гасим инерцию для пошаговости
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 30);
+            dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+            velocity = 0;
+            active = false; 
         } catch (Exception e) { active = false; }
     }
 
