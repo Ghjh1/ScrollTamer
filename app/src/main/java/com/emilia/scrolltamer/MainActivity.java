@@ -4,27 +4,27 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.os.Handler;
+import android.widget.*;
 import com.emilia.scrolltamer.utils.ScrollService;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-    private TextView debugInfo;
-    private EditText editDist, editTime;
-    private final Handler handler = new Handler();
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        debugInfo = findViewById(R.id.debug_info);
-        editDist = findViewById(R.id.edit_dist);
-        editTime = findViewById(R.id.edit_time);
+        EditText editDist = findViewById(R.id.edit_dist);
+        EditText editTime = findViewById(R.id.edit_time);
+        ListView testList = findViewById(R.id.test_list);
+
+        // Тот самый список
+        ArrayList<String> items = new ArrayList<>();
+        for (int i = 1; i <= 300; i++) items.add("Строка №" + i + " [ТЕСТ СКОЛЬЖЕНИЯ]");
+        testList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, items));
 
         TextWatcher tw = new TextWatcher() {
-            public void afterTextChanged(Editable s) { 
+            public void afterTextChanged(Editable s) {
                 try {
                     float d = Float.parseFloat(editDist.getText().toString());
                     int t = Integer.parseInt(editTime.getText().toString());
@@ -36,17 +36,5 @@ public class MainActivity extends Activity {
         };
         editDist.addTextChangedListener(tw);
         editTime.addTextChangedListener(tw);
-
-        startDebugUpdate();
-    }
-
-    private void startDebugUpdate() {
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                debugInfo.setText(ScrollService.getDebugData());
-                handler.postDelayed(this, 500);
-            }
-        }, 500);
     }
 }
