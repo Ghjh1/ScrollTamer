@@ -8,32 +8,37 @@ import android.view.accessibility.AccessibilityEvent;
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static final float D_BREAK = 16.0f;
-    private static final float D_SILK = 1.0f; // Тестируем на самом минимуме
-    private static final int WINDOW_LIMIT = 600; // Берем с запасом для замеров
+    private static final float D_SILK = 3.0f; // Увеличили, чтобы Android не игнорил
+    private static final int WINDOW_LIMIT = 400; // Немного сузили для точности
     
     private static long lastEventTime = 0;
-    private static long lastInterval = 0;
+    private static long currentInterval = 0;
+    private static String lastMode = "NONE";
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("INTERVAL: %d ms | Last: %s", 
-            lastInterval, (lastInterval < WINDOW_LIMIT && lastInterval > 0) ? "SILK" : "BREAK");
+        return String.format("INT: %d ms | MODE: %s", currentInterval, lastMode);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
         long now = System.currentTimeMillis();
-        if (lastEventTime > 0) {
-            lastInterval = now - lastEventTime;
-        }
+        currentInterval = (lastEventTime > 0) ? (now - lastEventTime) : 0;
         
         float direction = (delta > 0) ? 1.0f : -1.0f;
-        
-        // Если уложились в 600мс - пробуем шёлк, иначе - пробиваем заново
-        float dynamicD = (lastInterval > 0 && lastInterval < WINDOW_LIMIT) ? D_SILK : D_BREAK;
+        float dynamicD;
+
+        // Если пауза меньше 400мс - это серия (SILK)
+        if (lastEventTime > 0 && currentInterval < WINDOW_LIMIT) {
+            dynamicD = D_SILK;
+            lastMode = "SILK (3px)";
+        } else {
+            dynamicD = D_BREAK;
+            lastMode = "BREAK (16px)";
+        }
 
         Path path = new Path();
         path.moveTo(x, y);
