@@ -7,19 +7,18 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private final float D_DEADZONE = 13.0f; // Твой порог отрыва
-    private final float D_MIN_STEP = 1.0f;  // Минимальный полезный сдвиг
-    private final float D_MAX = 250.0f;     // Максимальный полет
-    private final int T_FIXED = 40;         // Граница флинга
+    private final float D_BASE = 14.0f; 
+    private final float D_MAX = 600.0f; // Увеличили предел для полетов
+    private final int T_FIXED = 40;     
     
     private static long lastEventTime = 0;
-    private static float currentExtra = 0f; // Накопленное ускорение
+    private static float currentExtra = 0f;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("FLOW v160 | Step: %.1f | T: 40", 13.0f + 1.0f + currentExtra);
+        return String.format("TURBO v161 | Step: %.1f | T: 40", 14.0f + currentExtra);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -29,29 +28,25 @@ public class ScrollService extends AccessibilityService {
         long interval = now - lastEventTime;
         float direction = (delta > 0) ? 1.0f : -1.0f;
 
-        // Плавный апскейлинг:
-        if (interval < 150) {
-            // Если крутишь активно, добавляем к шагу "вес"
-            // Чем меньше интервал, тем быстрее растет добавка
-            float boost = (150f - interval) / 10f; 
-            currentExtra += boost; 
+        if (interval < 250) {
+            // АГРЕССИВНЫЙ БУСТ
+            // Теперь даже при среднем интервале (100мс) прибавка будет ощутимой
+            float force = (250f - interval) / 5f; 
+            currentExtra += (force * force) / 10f; // Квадратичное ускорение!
         } else {
-            // Остывание: если была пауза, сбрасываем ускорение
             currentExtra = 0;
         }
         
-        // Ограничиваем сверху
-        if (currentExtra > instance.D_MAX) currentExtra = instance.D_MAX;
+        if (currentExtra > D_MAX) currentExtra = D_MAX;
 
-        // Итоговая дистанция = Мертвая зона + Базовый шаг + Накопленный бонус
-        float dynamicD = instance.D_DEADZONE + instance.D_MIN_STEP + currentExtra;
+        float dynamicD = D_BASE + currentExtra;
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (dynamicD * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, instance.T_FIXED);
+            new GestureDescription.StrokeDescription(path, 0, T_FIXED);
             
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
