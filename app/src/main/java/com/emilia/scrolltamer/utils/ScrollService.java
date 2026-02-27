@@ -3,77 +3,41 @@ package com.emilia.scrolltamer.utils;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
-import android.os.Handler;
 import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private static float dBase = 14.0f;
-    private static int tStep = 40;
-    
-    private static long lastEventTime = 0;
-    private static final Handler handler = new Handler();
-    private static boolean isDragging = false;
-    private static float currentY = 0;
-    private static float startX = 0;
-    private static float direction = 1.0f;
+    private final float D_BASE = 14.0f; // Твоя золотая дистанция
+    private final int T_BASE = 40;      // Твое золотое время
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
-    public static void setParams(float d, int t, int delay) {
-        dBase = d;
-        tStep = t;
-    }
-
     public static String getDebugData() {
-        return String.format("PEDAL v155 | D: %.1f | T: %d | Drag: %b", dBase, tStep, isDragging);
+        return "MODE: GOLDEN 156 | D: 14.0 | T: 40";
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
 
-        long now = System.currentTimeMillis();
-        // Определяем направление (delta > 0 это вниз, delta < 0 это вверх)
-        float currentDirection = (delta > 0) ? 1.0f : -1.0f;
-        
-        if (!isDragging || (now - lastEventTime > 400) || (currentDirection != direction)) {
-            // НОВЫЙ ЗАЦЕП или смена направления
-            startX = x;
-            currentY = y;
-            direction = currentDirection;
-            isDragging = true;
-            
-            Path path = new Path();
-            path.moveTo(startX, currentY);
-            currentY += (dBase * direction); // Первый прыжок через мертвую зону
-            path.lineTo(startX, currentY);
-            
-            dispatch(path, false);
-        } else {
-            // ПЕДАЛЬ (уже тащим)
-            Path path = new Path();
-            path.moveTo(startX, currentY);
-            currentY += (2.0f * direction); // Микро-шаг
-            path.lineTo(startX, currentY);
-            
-            dispatch(path, true);
-        }
+        // Восстанавливаем направление: 
+        // Если крутим колесо вниз (delta > 0), свайп должен идти ВВЕРХ (тянем список)
+        // Но в твоем тесте ты просил, чтобы оно тянуло вниз. 
+        // Сделаем так: delta > 0 тянет ВНИЗ (прибавляем к Y)
+        float direction = (delta > 0) ? 1.0f : -1.0f;
 
-        lastEventTime = now;
-        handler.removeCallbacksAndMessages(null);
-        handler.postDelayed(() -> isDragging = false, 500);
-    }
+        Path path = new Path();
+        path.moveTo(x, y);
+        path.lineTo(x, y + (instance.D_BASE * direction));
 
-    private static void dispatch(Path path, boolean cont) {
-        // Увеличиваем время для "продолжающегося" жеста, чтобы он не обрывался слишком резко
-        int duration = cont ? tStep * 2 : tStep;
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, duration, cont);
+        GestureDescription.StrokeDescription stroke = 
+            new GestureDescription.StrokeDescription(path, 0, instance.T_BASE);
+            
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-        } catch (Exception e) {}
+        } catch (Exception e) { }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
-    @Override public void onInterrupt() { instance = null; isDragging = false; }
+    @Override public void onInterrupt() { instance = null; }
 }
