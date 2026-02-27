@@ -30,13 +30,13 @@ public class MainActivity extends Activity {
         scrollView.setOnGenericMotionListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_SCROLL) {
                 float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                // Передаем прокрутку в сервис
                 ScrollService.scroll(vScroll, event.getRawX(), event.getRawY());
                 return true;
             }
             return false;
         });
 
+        // Обновляем приборы 20 раз в секунду
         updateHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
