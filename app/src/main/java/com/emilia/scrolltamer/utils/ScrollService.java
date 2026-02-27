@@ -8,9 +8,8 @@ import android.view.accessibility.AccessibilityEvent;
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     
-    // Все переменные теперь static, чтобы компилятор не ругался
-    private static final float D_BASE = 14.0f; 
-    private static final float D_MAX = 600.0f; 
+    private static final float D_BREAK = 16.0f; // Удар для открытия замка
+    private static final float D_SILK = 2.0f;   // База после открытия
     private static final int T_FIXED = 40;     
     
     private static long lastEventTime = 0;
@@ -20,7 +19,9 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("TURBO v162 | Step: %.1f | T: 40", D_BASE + currentExtra);
+        float currentStep = (System.currentTimeMillis() - lastEventTime < 300) ? 
+                            (D_SILK + currentExtra) : D_BREAK;
+        return String.format("LOCK-PICK v163 | Step: %.1f", currentStep);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -29,18 +30,20 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         long interval = now - lastEventTime;
         float direction = (delta > 0) ? 1.0f : -1.0f;
+        float dynamicD;
 
-        if (interval < 250) {
-            // Квадратичное ускорение (тот самый агрессивный буст)
-            float force = (250f - interval) / 5f; 
-            currentExtra += (force * force) / 8f; 
+        if (interval < 300) { 
+            // ЗАМОК ОТКРЫТ: переходим на микро-шаги + мягкий разгон
+            float force = (300f - interval) / 10f; 
+            currentExtra += (force * force) / 20f; // Мягкая квадратичная добавка
+            
+            dynamicD = D_SILK + currentExtra;
+            if (dynamicD > 400.0f) dynamicD = 400.0f;
         } else {
-            currentExtra = 0; // Сброс при паузе
+            // ПЕРВЫЙ УДАР: пробиваем 13-пиксельную зону
+            currentExtra = 0;
+            dynamicD = D_BREAK;
         }
-        
-        if (currentExtra > D_MAX) currentExtra = D_MAX;
-
-        float dynamicD = D_BASE + currentExtra;
 
         Path path = new Path();
         path.moveTo(x, y);
