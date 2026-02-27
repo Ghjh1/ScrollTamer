@@ -7,9 +7,11 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
-    private final float D_BASE = 14.0f; 
-    private final float D_MAX = 600.0f; // Увеличили предел для полетов
-    private final int T_FIXED = 40;     
+    
+    // Все переменные теперь static, чтобы компилятор не ругался
+    private static final float D_BASE = 14.0f; 
+    private static final float D_MAX = 600.0f; 
+    private static final int T_FIXED = 40;     
     
     private static long lastEventTime = 0;
     private static float currentExtra = 0f;
@@ -18,7 +20,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("TURBO v161 | Step: %.1f | T: 40", 14.0f + currentExtra);
+        return String.format("TURBO v162 | Step: %.1f | T: 40", D_BASE + currentExtra);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -29,12 +31,11 @@ public class ScrollService extends AccessibilityService {
         float direction = (delta > 0) ? 1.0f : -1.0f;
 
         if (interval < 250) {
-            // АГРЕССИВНЫЙ БУСТ
-            // Теперь даже при среднем интервале (100мс) прибавка будет ощутимой
+            // Квадратичное ускорение (тот самый агрессивный буст)
             float force = (250f - interval) / 5f; 
-            currentExtra += (force * force) / 10f; // Квадратичное ускорение!
+            currentExtra += (force * force) / 8f; 
         } else {
-            currentExtra = 0;
+            currentExtra = 0; // Сброс при паузе
         }
         
         if (currentExtra > D_MAX) currentExtra = D_MAX;
