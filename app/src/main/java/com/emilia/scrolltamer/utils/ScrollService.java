@@ -26,37 +26,33 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // ТРЕХСТУПЕНЧАТЫЙ РАЗГОН для идеальной мягкости
-            float inc;
-            if (velocity < 8) inc = 2.5f;      // Микро-старт (убираем ступеньки)
-            else if (velocity < 20) inc = 5.0f; // Плотная середина
-            else inc = 8.5f;                   // Турбо-подхват
-            
+            // ПЛОТНЫЙ РАЗГОН: Убираем микро-старт, сразу даем рабочий ход
+            // +4 на старте, +9.5 в зоне 3/4 для мощности
+            float inc = (velocity < 15) ? 4.5f : 9.5f;
             velocity += inc; 
-            if (velocity > 34.0f) velocity = 34.0f; 
+            if (velocity > 36.0f) velocity = 36.0f; // D до 50 (золотая середина)
         } else {
             velocity = 0; 
         }
 
         int finalStep = (int)(14 + velocity);
-        float ratio = velocity / 34.0f;
+        float ratio = velocity / 36.0f;
         
-        // РАННИЙ ФЛИНГ: Степень 0.6 вместо 0.8. 
-        // Время (T) будет падать ОЧЕНЬ быстро в начале.
-        // Вниз: 39 -> 23. Вверх: 41 -> 25.
-        int baseT = (direction < 0) ? 41 : 39;
-        int targetT = (direction < 0) ? 25 : 23;
-        int diff = baseT - targetT;
-
-        // Формула с ранним подхватом (pow 0.6)
-        int finalT = baseT - (int)(Math.pow(ratio, 0.6) * diff);
+        // ВОЗВРАЩАЕМ ФЛИНГ НА СТАРТ:
+        // Базовое T теперь падает ЛИНЕЙНО, чтобы не было дерганий
+        // Вниз: 38.5 -> 23. Вверх: 40.5 -> 25.
+        float baseT = (direction < 0) ? 40.5f : 38.5f;
+        float targetT = (direction < 0) ? 25.0f : 23.0f;
+        
+        // Линейный спад T (ratio^0.9) дает предсказуемую густоту
+        int finalT = (int)(baseT - (Math.pow(ratio, 0.9) * (baseT - targetT)));
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, Math.max(targetT, finalT));
+            new GestureDescription.StrokeDescription(path, 0, Math.max((int)targetT, finalT));
             
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
