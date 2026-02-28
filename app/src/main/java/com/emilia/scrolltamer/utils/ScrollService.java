@@ -51,6 +51,16 @@ public class ScrollService extends AccessibilityService {
 
         try {
             windowManager.addView(overlayView, params);
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | // Чтобы пальцы проходили сквозь
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT
+            );
+
         } catch (Exception e) {
             // Если нет разрешения на наложение, вылетит сюда
         }

@@ -34,6 +34,16 @@ public class MainActivity extends Activity {
                 return true;
             }
             return false;
+
+                // В MainActivity.java внутри onCreate
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+            android.content.Intent intent = new android.content.Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:" + getPackageName())
+            );
+            startActivityForResult(intent, 123);
+        }
+ 
         });
 
         // Обновляем приборы 20 раз в секунду
