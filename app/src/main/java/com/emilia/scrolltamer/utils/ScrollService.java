@@ -14,7 +14,8 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("STEP: %.1f | T: 39ms", 18.0f + velocity);
+        // Показываем реальный текущий шаг для калибровки
+        return String.format("STEP: %.0f | T: 39ms", 14.0f + velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -25,29 +26,28 @@ public class ScrollService extends AccessibilityService {
         long interval = now - lastEventTime;
         lastEventTime = now;
 
-        // Если крутим быстро (< 200ms) — чуть наращиваем шаг (акселерация 112-й)
-        if (interval < 200) {
-            velocity += 1.5f;
-            if (velocity > 30f) velocity = 30f;
+        // Если крутим активно (< 180ms между щелчками)
+        if (interval < 180) {
+            // Увеличиваем шаг быстрее и до большего предела
+            velocity += 2.5f; 
+            if (velocity > 45.0f) velocity = 45.0f; 
         } else {
-            // Если пауза — сброс на чистый отрыв
+            // Полный сброс на ювелирную базу 14px
             velocity = 0;
         }
 
-        // БАЗА: 18px (отрыв) + накопленная скорость
-        int finalStep = (int)(18 + velocity);
+        // РАСЧЕТ: База 14 + накопленный разгон
+        int finalStep = (int)(14 + velocity);
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
-        // Твой золотой стандарт T=39
         GestureDescription.StrokeDescription stroke = 
             new GestureDescription.StrokeDescription(path, 0, 39);
             
         try {
-            // Шлем жест мгновенно и забываем о нем. 
-            // Это освобождает поток для следующего щелчка.
+            // Прямая отправка без посредников и очередей
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
         } catch (Exception e) { }
     }
