@@ -14,7 +14,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V: %.1f | T39 FIXED", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f | HYBRID MODE", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,32 +26,34 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // Плотный подхват в середине (+8), но аккуратный вход (+4)
-            float inc = (velocity < 12) ? 4.0f : 8.5f;
+            // Плавный разгон как в 190-й, но с очень мягким первым шагом
+            float inc = (velocity < 10) ? 4.0f : 9.0f; 
             velocity += inc; 
             if (velocity > 36.0f) velocity = 36.0f; 
         } else {
-            velocity = 0; 
+            velocity = 0; // Полный сброс в идеальные 14-39
         }
 
         int finalStep = (int)(14 + velocity);
-        float ratio = velocity / 36.0f;
         
-        // ЗАКОН T=39: Оба направления стартуют с 39мс
-        int startT = 39;
-        // Финиш: Вниз 23мс, Вверх 25мс (для мягкости)
-        int endT = (direction < 0) ? 25 : 23;
-        
-        // КРИВАЯ: Используем степень 1.3, чтобы T подольше держалось около 39 
-        // на малых скоростях, сохраняя ту самую "точность флинга"
-        int finalT = startT - (int)(Math.pow(ratio, 1.3) * (startT - endT));
+        // РАСЧЕТ ТАЙМИНГА (ГИБРИД)
+        int finalT;
+        if (velocity == 0) {
+            finalT = 39; // Тот самый эталонный старт вниз/вверх
+        } else {
+            float ratio = velocity / 36.0f;
+            // Берем базу 190-й для плавности: Вниз 23, Вверх 25
+            float targetT = (direction < 0) ? 25.0f : 23.0f;
+            // Линейное падение от 39 до цели
+            finalT = (int)(39 - (ratio * (39 - targetT)));
+        }
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, Math.max(endT, finalT));
+            new GestureDescription.StrokeDescription(path, 0, finalT);
             
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
