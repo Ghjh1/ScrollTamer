@@ -14,10 +14,10 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        float ratio = velocity / 34.0f; // Теперь потолок набора 34 (14+34=48)
-        int currentT = 39 - (int)(Math.pow(ratio, 1.5) * 17); // 39 -> 22 (степень 1.5 вместо 2.0 для раннего подхвата)
+        float ratio = velocity / 34.0f; 
+        int currentT = 39 - (int)(Math.pow(ratio, 1.2) * 19); // Падение до 20 (39-19)
         return String.format("D: %.0f | T: %dms | %s", 
-            14.0f + velocity, Math.max(22, currentT), (ratio > 0.8 ? "WARP" : "SILK"));
+            14.0f + velocity, Math.max(20, currentT), (ratio > 0.8 ? "WARP" : "SILK"));
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -29,19 +29,20 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // Твой шаг +6!
-            velocity += 6.0f; 
-            if (velocity > 34.0f) velocity = 34.0f; // Потолок D=48 (14+34)
+            // Динамический инкремент: чем меньше скорость, тем мягче прибавка
+            float increment = (velocity < 15) ? 3.0f : 6.0f;
+            velocity += increment; 
+            if (velocity > 34.0f) velocity = 34.0f; 
         } else {
             velocity = 0; 
         }
 
         int finalStep = (int)(14 + velocity);
         
-        // Более раннее падение T (степень 1.5 дает более пологий, но ранний старт падения)
+        // Степень 1.2 вместо 1.5 — еще более раннее и плавное начало падения T
         float ratio = velocity / 34.0f;
-        int finalT = 39 - (int)(Math.pow(ratio, 1.5) * 17); 
-        if (finalT < 22) finalT = 22;
+        int finalT = 39 - (int)(Math.pow(ratio, 1.2) * 19); 
+        if (finalT < 20) finalT = 20;
 
         Path path = new Path();
         path.moveTo(x, y);
