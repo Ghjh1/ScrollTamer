@@ -14,7 +14,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V: %.1f", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f | T39 FIXED", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,11 +26,10 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // ПЛОТНЫЙ РАЗГОН: Убираем микро-старт, сразу даем рабочий ход
-            // +4 на старте, +9.5 в зоне 3/4 для мощности
-            float inc = (velocity < 15) ? 4.5f : 9.5f;
+            // Плотный подхват в середине (+8), но аккуратный вход (+4)
+            float inc = (velocity < 12) ? 4.0f : 8.5f;
             velocity += inc; 
-            if (velocity > 36.0f) velocity = 36.0f; // D до 50 (золотая середина)
+            if (velocity > 36.0f) velocity = 36.0f; 
         } else {
             velocity = 0; 
         }
@@ -38,21 +37,21 @@ public class ScrollService extends AccessibilityService {
         int finalStep = (int)(14 + velocity);
         float ratio = velocity / 36.0f;
         
-        // ВОЗВРАЩАЕМ ФЛИНГ НА СТАРТ:
-        // Базовое T теперь падает ЛИНЕЙНО, чтобы не было дерганий
-        // Вниз: 38.5 -> 23. Вверх: 40.5 -> 25.
-        float baseT = (direction < 0) ? 40.5f : 38.5f;
-        float targetT = (direction < 0) ? 25.0f : 23.0f;
+        // ЗАКОН T=39: Оба направления стартуют с 39мс
+        int startT = 39;
+        // Финиш: Вниз 23мс, Вверх 25мс (для мягкости)
+        int endT = (direction < 0) ? 25 : 23;
         
-        // Линейный спад T (ratio^0.9) дает предсказуемую густоту
-        int finalT = (int)(baseT - (Math.pow(ratio, 0.9) * (baseT - targetT)));
+        // КРИВАЯ: Используем степень 1.3, чтобы T подольше держалось около 39 
+        // на малых скоростях, сохраняя ту самую "точность флинга"
+        int finalT = startT - (int)(Math.pow(ratio, 1.3) * (startT - endT));
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, Math.max((int)targetT, finalT));
+            new GestureDescription.StrokeDescription(path, 0, Math.max(endT, finalT));
             
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
