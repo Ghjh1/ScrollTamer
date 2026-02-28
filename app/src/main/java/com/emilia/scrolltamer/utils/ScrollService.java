@@ -9,12 +9,13 @@ public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float velocity = 0;
     private static long lastEventTime = 0;
+    private static int gestureCounter = 0; // Счетчик для ШИМ
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V: %.1f | HYBRID MODE", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f | PWM ACTIVE", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,27 +27,30 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // Плавный разгон как в 190-й, но с очень мягким первым шагом
-            float inc = (velocity < 10) ? 4.0f : 9.0f; 
+            // Еще более мощный подхват в конце (+11) для 4/4
+            float inc = (velocity < 10) ? 4.0f : 11.0f; 
             velocity += inc; 
             if (velocity > 36.0f) velocity = 36.0f; 
         } else {
-            velocity = 0; // Полный сброс в идеальные 14-39
+            velocity = 0;
+            gestureCounter = 0;
         }
 
         int finalStep = (int)(14 + velocity);
+        float ratio = velocity / 36.0f;
         
-        // РАСЧЕТ ТАЙМИНГА (ГИБРИД)
-        int finalT;
-        if (velocity == 0) {
-            finalT = 39; // Тот самый эталонный старт вниз/вверх
-        } else {
-            float ratio = velocity / 36.0f;
-            // Берем базу 190-й для плавности: Вниз 23, Вверх 25
-            float targetT = (direction < 0) ? 25.0f : 23.0f;
-            // Линейное падение от 39 до цели
-            finalT = (int)(39 - (ratio * (39 - targetT)));
-        }
+        // РАСЧЕТ ВИРТУАЛЬНОГО T (Float)
+        float startT = 39.0f;
+        float targetT = (direction < 0) ? 24.0f : 21.0f; // Ускорили 4/4 (было 23/25)
+        float virtualT = startT - (ratio * (startT - targetT));
+
+        // РЕАЛИЗАЦИЯ ШИМ (PWM)
+        // Если virtualT = 38.4, то в 40% случаев будет 38, в 60% будет 39.
+        int floorT = (int) Math.floor(virtualT);
+        float fractionalPart = virtualT - floorT;
+        
+        gestureCounter++;
+        int finalT = ( (gestureCounter % 10) < (fractionalPart * 10) ) ? floorT + 1 : floorT;
 
         Path path = new Path();
         path.moveTo(x, y);
