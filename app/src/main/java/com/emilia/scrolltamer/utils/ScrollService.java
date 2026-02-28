@@ -28,26 +28,25 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // ТОРМОЗ (База v112) - если резко крутанули в обратку
+        // Резкий тормоз при смене направления
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             velocity = 0;
             active = false;
-            lockUntil = now + 100; // Пауза на тормоз
+            lockUntil = now + 100;
             instance.killQueue(x, y);
             return;
         }
 
-        // Накапливаем velocity
-        velocity += delta * 55;
+        // Энергия копится ВСЕГДА
+        velocity += delta * 60; // Чуть добавили веса щелчку (55 -> 60)
         if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
-        // ПРОВЕРКА РЕЖИМА ПО VELOCITY
-        if (Math.abs(velocity) < 150) {
-            // Режим ПИНЦЕТ: пока скорость мала, бьем точными порциями
-            active = false; // Пульс пока не спит
-            instance.pincetStroke(delta, x, y);
+        if (Math.abs(velocity) < 180) { // Порог чуть выше для Пинцета
+            if (!active) {
+                instance.pincetStroke(delta, x, y);
+            }
         } else {
-            // Режим ПУЛЬС: маховик разогнался
+            // Переход в маховик
             if (!active) {
                 active = true;
                 instance.pulse(x, y);
@@ -57,24 +56,23 @@ public class ScrollService extends AccessibilityService {
 
     private void pincetStroke(float delta, float x, float y) {
         float direction = Math.signum(delta);
-        int[] steps = {16, 20, 26, 30}; // Чуть подправил прогрессию для уверенности
-        int d = steps[pincetStep];
-        pincetStep = (pincetStep + 1) % steps.length;
+        int[] steps = {16, 22, 28}; // Упростили и усилили шаг
+        int d = steps[pincetStep % steps.length];
+        pincetStep++;
 
         Path p = new Path();
         p.moveTo(x, y);
         p.lineTo(x, y + (d * direction));
         
-        // T=40 для пинцета - жесткий контроль
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
         
-        // Сброс шага пинцета при паузе
         handler.removeCallbacksAndMessages(null);
         handler.postDelayed(() -> {
             pincetStep = 0;
-            if (!active) velocity = 0; // Обнуляем малую скорость при остановке
-        }, 300);
+            // Если маховик не запущен, потихоньку гасим скорость
+            if (!active) velocity *= 0.5f; 
+        }, 250);
     }
 
     private void killQueue(float x, float y) {
@@ -89,10 +87,11 @@ public class ScrollService extends AccessibilityService {
         if (!active || Math.abs(velocity) < 1.0f) {
             velocity = 0;
             active = false;
+            pincetStep = 0;
             return;
         }
 
-        float step = velocity * 0.12f; // Затухание 112-й
+        float step = velocity * 0.12f;
         if (Math.abs(step) > 175) step = Math.signum(step) * 175;
         velocity -= step;
 
@@ -100,7 +99,6 @@ public class ScrollService extends AccessibilityService {
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
-        // T38 для той самой мягкости "112-й"
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 38);
 
         try {
