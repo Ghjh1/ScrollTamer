@@ -14,9 +14,11 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        // Рассчитываем T для дебага (39 -> 25)
-        int currentT = 39 - (int)(velocity / 3.2f); 
-        return String.format("D: %.0f | T: %dms", 14.0f + velocity, Math.max(25, currentT));
+        float ratio = velocity / 46.0f; 
+        // Теперь падение до 22 (39 - 17 = 22)
+        int currentT = 39 - (int)(Math.pow(ratio, 2) * 17); 
+        return String.format("D: %.0f | T: %dms | %s", 
+            14.0f + velocity, Math.max(22, currentT), (ratio > 0.85 ? "WARP" : "SILK"));
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -27,20 +29,19 @@ public class ScrollService extends AccessibilityService {
         long interval = now - lastEventTime;
         lastEventTime = now;
 
-        if (interval < 200) { // Чуть расширили окно подхвата
-            // Агрессивный набор мощности: +10 за щелчок
-            velocity += 10.0f; 
-            if (velocity > 46.0f) velocity = 46.0f; // Итого D = 14 + 46 = 60
+        if (interval < 220) {
+            velocity += 4.0f; 
+            if (velocity > 46.0f) velocity = 46.0f; 
         } else {
-            velocity = 0; // Возврат к ювелирной базе
+            velocity = 0; 
         }
 
         int finalStep = (int)(14 + velocity);
-
-        // Динамический T: от 39 до 25. 
-        // Делим на 3.2, чтобы при velocity=46 мы четко выходили на T=25
-        int finalT = 39 - (int)(velocity / 3.2f); 
-        if (finalT < 25) finalT = 25;
+        
+        // Математика T22
+        float ratio = velocity / 46.0f;
+        int finalT = 39 - (int)(Math.pow(ratio, 2) * 17); 
+        if (finalT < 22) finalT = 22;
 
         Path path = new Path();
         path.moveTo(x, y);
