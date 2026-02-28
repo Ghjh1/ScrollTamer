@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
-import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
@@ -27,22 +26,23 @@ public class ScrollService extends AccessibilityService {
 
     private void setupGlobalOverlay() {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-        // Создаем невидимое окно, которое пропускает касания пальцев, но ловит мышь
         overlayView = new View(this);
+        
+        // Настройка окна на ВЕСЬ ЭКРАН (MATCH_PARENT)
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-            1, 1, // Размер 1х1 пиксель (или больше, если нужно ловить везде)
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         );
-        params.gravity = Gravity.TOP | Gravity.LEFT;
-        
-        // Магия перехвата колеса
+
         overlayView.setOnGenericMotionListener((v, event) -> {
             if (event.getSource() == InputDevice.SOURCE_MOUSE && 
                 event.getAction() == MotionEvent.ACTION_SCROLL) {
                 float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                // Используем координаты курсора прямо из события!
                 scroll(vScroll, event.getRawX(), event.getRawY());
                 return true;
             }
@@ -51,23 +51,11 @@ public class ScrollService extends AccessibilityService {
 
         try {
             windowManager.addView(overlayView, params);
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | // Чтобы пальцы проходили сквозь
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT
-            );
-
-        } catch (Exception e) {
-            // Если нет разрешения на наложение, вылетит сюда
-        }
+        } catch (Exception e) { /* Права не выданы */ }
     }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V: %.1f | GLOBAL ACTIVE", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f | GLOBAL SNIPER", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
