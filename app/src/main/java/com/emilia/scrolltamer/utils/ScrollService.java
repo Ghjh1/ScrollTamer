@@ -12,7 +12,6 @@ public class ScrollService extends AccessibilityService {
     private static float velocity = 0;
     private static boolean active = false;
     private static long lockUntil = 0;
-    private static int pincetStep = 0;
     
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -20,7 +19,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | %s", velocity, (active ? "FLYHEEL" : "PINCET"));
+        return String.format("V: %.1f | STATUS: %s", velocity, (active ? "RUNNING" : "IDLE"));
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -28,46 +27,23 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // Тормоз при смене направления
+        // Резкий тормоз (v112)
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
             velocity = 0; active = false; lockUntil = now + 100;
             instance.killQueue(x, y); return;
         }
 
-        // Копим энергию без порогов (старт с нуля)
-        velocity += delta * 60;
-        if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
-
-        // Если маховик еще не крутится - помогаем Пинцетом
+        // МАГИЯ СТАРТА: Если стоим, даем пинок сразу на 160 (это ~19px сдвига)
         if (!active) {
-            instance.pincetStroke(delta, x, y);
-            
-            // Если накопили достаточно для маховика - запускаем!
-            if (Math.abs(velocity) > 150) {
-                active = true;
-                instance.pulse(x, y);
-            }
+            velocity = Math.signum(delta) * 160f;
+            active = true;
+            instance.pulse(x, y);
+        } else {
+            // Если уже едем — просто добавляем веса (как в v112)
+            velocity += delta * 65;
         }
-    }
-
-    private void pincetStroke(float delta, float x, float y) {
-        float direction = Math.signum(delta);
-        // Фиксированный шаг для предсказуемости на старте
-        int d = (pincetStep % 2 == 0) ? 16 : 22; 
-        pincetStep++;
-
-        Path p = new Path();
-        p.moveTo(x, y);
-        p.lineTo(x, y + (d * direction));
         
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 40);
-        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
-        
-        handler.removeCallbacksAndMessages(null);
-        handler.postDelayed(() -> {
-            pincetStep = 0;
-            if (!active) velocity = 0; 
-        }, 200);
+        if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
     }
 
     private void killQueue(float x, float y) {
@@ -77,22 +53,29 @@ public class ScrollService extends AccessibilityService {
     }
 
     private void pulse(final float x, final float y) {
+        // Если скорость упала ниже порога видимости — стоп
         if (!active || Math.abs(velocity) < 1.0f) {
-            velocity = 0; active = false; pincetStep = 0; return;
+            velocity = 0; active = false; return;
         }
 
+        // Математика затухания v112 (0.12f)
         float step = velocity * 0.12f;
-        if (Math.abs(step) > 175) step = Math.signum(step) * 175;
+        
+        // Ограничиваем максимальный рывок, чтобы не улетать
+        if (Math.abs(step) > 180) step = Math.signum(step) * 180;
+        
         velocity -= step;
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + step);
 
+        // T=38 — наш "Шёлковый" стандарт для плавности и тормозов
         GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 38);
 
         try {
             dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+            // Частота обновления пульса (22мс)
             handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
         } catch (Exception e) { active = false; }
     }
