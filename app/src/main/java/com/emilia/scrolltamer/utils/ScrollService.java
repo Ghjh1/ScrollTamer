@@ -14,7 +14,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V_STEP: %.1f", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,10 +26,9 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            // УСКОРЕННЫЙ ПОДХВАТ: +7 вместо +6 для динамики в середине
-            // Но для движения ВВЕРХ (direction < 0) делаем чуть слабее (+5.8)
-            float stepGain = (direction < 0) ? 5.8f : 7.0f;
-            velocity += stepGain; 
+            // Быстрый подхват (+7), но мягкое начало (+3.5)
+            float inc = (velocity < 12) ? 3.5f : 7.0f;
+            velocity += inc; 
             if (velocity > 34.0f) velocity = 34.0f; 
         } else {
             velocity = 0; 
@@ -38,21 +37,18 @@ public class ScrollService extends AccessibilityService {
         int finalStep = (int)(14 + velocity);
         float ratio = velocity / 34.0f;
         
-        // АСИММЕТРИЯ ТАЙМИНГА:
-        // Вниз: 39 -> 23ms (быстрое масло)
-        // Вверх: 40 -> 25ms (густой бархат, чтобы компенсировать резкий палец)
-        int baseT = (direction < 0) ? 40 : 39;
-        int targetT = (direction < 0) ? 25 : 23;
-        int diff = baseT - targetT;
-
-        int finalT = baseT - (int)(Math.pow(ratio, 0.8) * diff);
+        // БАЗА 186-й (39 -> 23)
+        int finalT = 39 - (int)(Math.pow(ratio, 0.8) * 16); 
+        
+        // Мягкая поправка "ВВЕРХ": +1.5мс к вязкости
+        if (direction < 0) finalT += 1.5f;
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, Math.max(targetT, finalT));
+            new GestureDescription.StrokeDescription(path, 0, Math.max(23, finalT));
             
         try {
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
