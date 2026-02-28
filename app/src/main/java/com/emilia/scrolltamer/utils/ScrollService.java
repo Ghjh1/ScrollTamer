@@ -15,7 +15,7 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("D: %.0f | V: %.1f | FINAL CALIBRATION", 14.0f + velocity, velocity);
+        return String.format("D: %.0f | V: %.1f | SNIPER MODE", 14.0f + velocity, velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -27,16 +27,19 @@ public class ScrollService extends AccessibilityService {
         lastEventTime = now;
 
         if (interval < 220) {
-            float inc = (velocity < 10) ? 4.0f : 11.0f; 
+            // УМНЫЙ ПОДХВАТ: 
+            // Если ты крутишь ОЧЕНЬ быстро (интервал < 80мс), даем +11 (форсаж)
+            // Если ты крутишь вдумчиво (интервал > 80мс), даем всего +3.5 (точность)
+            float inc = (interval < 80) ? 11.0f : 3.5f;
             velocity += inc; 
-            if (velocity > 35.0f) velocity = 35.0f; // Тот самый фикс на 35
+            if (velocity > 36.0f) velocity = 36.0f; 
         } else {
             velocity = 0;
             gestureCounter = 0;
         }
 
         int finalStep = (int)(14 + velocity);
-        float ratio = velocity / 35.0f; // Пересчет под 35
+        float ratio = velocity / 36.0f; 
         
         float startT = 39.0f;
         float targetT = (direction < 0) ? 24.0f : 21.0f; 
