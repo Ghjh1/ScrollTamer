@@ -14,8 +14,8 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        // Показываем реальный текущий шаг для калибровки
-        return String.format("STEP: %.0f | T: 39ms", 14.0f + velocity);
+        int currentT = 39 - (int)(velocity / 15); // Динамический T
+        return String.format("D: %.0f | T: %dms", 14.0f + velocity, Math.max(36, currentT));
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,28 +26,30 @@ public class ScrollService extends AccessibilityService {
         long interval = now - lastEventTime;
         lastEventTime = now;
 
-        // Если крутим активно (< 180ms между щелчками)
+        // Если крутим активно
         if (interval < 180) {
-            // Увеличиваем шаг быстрее и до большего предела
-            velocity += 2.5f; 
-            if (velocity > 45.0f) velocity = 45.0f; 
+            velocity += 3.5f; // Быстрее набираем мощь
+            if (velocity > 51.0f) velocity = 51.0f; // Итого D до 65
         } else {
-            // Полный сброс на ювелирную базу 14px
-            velocity = 0;
+            velocity = 0; // Сброс на базу
         }
 
-        // РАСЧЕТ: База 14 + накопленный разгон
+        // РАСЧЕТ ДИСТАНЦИИ (14..65)
         int finalStep = (int)(14 + velocity);
+
+        // РАСЧЕТ ТАЙМИНГА (39..36)
+        // Чем выше velocity, тем меньше T (больше флинг)
+        int finalT = 39 - (int)(velocity / 15); 
+        if (finalT < 36) finalT = 36;
 
         Path path = new Path();
         path.moveTo(x, y);
         path.lineTo(x, y + (finalStep * direction));
 
         GestureDescription.StrokeDescription stroke = 
-            new GestureDescription.StrokeDescription(path, 0, 39);
+            new GestureDescription.StrokeDescription(path, 0, finalT);
             
         try {
-            // Прямая отправка без посредников и очередей
             instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
         } catch (Exception e) { }
     }
