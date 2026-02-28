@@ -4,80 +4,52 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
 import android.view.accessibility.AccessibilityEvent;
-import android.os.Handler;
-import android.os.Looper;
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
     private static float velocity = 0;
-    private static boolean active = false;
-    private static long lockUntil = 0;
-    
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    private static long lastEventTime = 0;
 
     @Override
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        return String.format("V: %.1f | %s", velocity, (active ? "FLYING" : "READY"));
+        return String.format("STEP: %.1f | T: 39ms", 18.0f + velocity);
     }
 
     public static void scroll(float delta, float x, float y) {
         if (instance == null) return;
         long now = System.currentTimeMillis();
-        if (now < lockUntil) return;
+        
+        float direction = Math.signum(delta);
+        long interval = now - lastEventTime;
+        lastEventTime = now;
 
-        // ТОРМОЗА 112-й: Смена направления — полная остановка
-        if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            velocity = 0; active = false; lockUntil = now + 110;
-            instance.stopMovement(x, y); return;
-        }
-
-        // СТАРТ С ОТКРЫТИЕМ ЗАМКА (18px)
-        if (!active) {
-            // Чтобы при затухании 0.12 первый шаг был 18px, ставим V = 150
-            velocity = Math.signum(delta) * 150f;
-            active = true;
-            instance.pulse(x, y);
+        // Если крутим быстро (< 200ms) — чуть наращиваем шаг (акселерация 112-й)
+        if (interval < 200) {
+            velocity += 1.5f;
+            if (velocity > 30f) velocity = 30f;
         } else {
-            // Если уже летим — добавляем "веса" щелчку
-            velocity += delta * 65;
-        }
-        
-        if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
-    }
-
-    private void stopMovement(float x, float y) {
-        Path p = new Path(); p.moveTo(x, y); p.lineTo(x, y + 1);
-        GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
-        dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
-    }
-
-    private void pulse(final float x, final float y) {
-        if (!active || Math.abs(velocity) < 1.0f) {
-            velocity = 0; active = false; return;
+            // Если пауза — сброс на чистый отрыв
+            velocity = 0;
         }
 
-        // Математика затухания 112-й (0.12f)
-        float step = velocity * 0.12f;
-        
-        // Ограничиваем рывок, чтобы не было "прыжков"
-        if (Math.abs(step) > 170) step = Math.signum(step) * 170;
-        
-        velocity -= step;
+        // БАЗА: 18px (отрыв) + накопленная скорость
+        int finalStep = (int)(18 + velocity);
 
         Path path = new Path();
         path.moveTo(x, y);
-        path.lineTo(x, y + (float)Math.floor(step)); // Только целые числа для Redmi
+        path.lineTo(x, y + (finalStep * direction));
 
-        // Твой золотой порог T=39 (Контролируемый флинг)
-        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 39);
-
+        // Твой золотой стандарт T=39
+        GestureDescription.StrokeDescription stroke = 
+            new GestureDescription.StrokeDescription(path, 0, 39);
+            
         try {
-            dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
-            // Интервал 22мс — проверенная классика 112-й
-            handler.postDelayed(() -> { if (active) pulse(x, y); }, 22);
-        } catch (Exception e) { active = false; }
+            // Шлем жест мгновенно и забываем о нем. 
+            // Это освобождает поток для следующего щелчка.
+            instance.dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+        } catch (Exception e) { }
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
