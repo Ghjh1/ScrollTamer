@@ -28,26 +28,22 @@ public class ScrollService extends AccessibilityService {
         long now = System.currentTimeMillis();
         if (now < lockUntil) return;
 
-        // Резкий тормоз при смене направления
+        // Тормоз при смене направления
         if (velocity != 0 && Math.signum(delta) != Math.signum(velocity)) {
-            velocity = 0;
-            active = false;
-            lockUntil = now + 100;
-            instance.killQueue(x, y);
-            return;
+            velocity = 0; active = false; lockUntil = now + 100;
+            instance.killQueue(x, y); return;
         }
 
-        // Энергия копится ВСЕГДА
-        velocity += delta * 60; // Чуть добавили веса щелчку (55 -> 60)
+        // Копим энергию без порогов (старт с нуля)
+        velocity += delta * 60;
         if (Math.abs(velocity) > 3500) velocity = Math.signum(velocity) * 3500;
 
-        if (Math.abs(velocity) < 180) { // Порог чуть выше для Пинцета
-            if (!active) {
-                instance.pincetStroke(delta, x, y);
-            }
-        } else {
-            // Переход в маховик
-            if (!active) {
+        // Если маховик еще не крутится - помогаем Пинцетом
+        if (!active) {
+            instance.pincetStroke(delta, x, y);
+            
+            // Если накопили достаточно для маховика - запускаем!
+            if (Math.abs(velocity) > 150) {
                 active = true;
                 instance.pulse(x, y);
             }
@@ -56,8 +52,8 @@ public class ScrollService extends AccessibilityService {
 
     private void pincetStroke(float delta, float x, float y) {
         float direction = Math.signum(delta);
-        int[] steps = {16, 22, 28}; // Упростили и усилили шаг
-        int d = steps[pincetStep % steps.length];
+        // Фиксированный шаг для предсказуемости на старте
+        int d = (pincetStep % 2 == 0) ? 16 : 22; 
         pincetStep++;
 
         Path p = new Path();
@@ -70,25 +66,19 @@ public class ScrollService extends AccessibilityService {
         handler.removeCallbacksAndMessages(null);
         handler.postDelayed(() -> {
             pincetStep = 0;
-            // Если маховик не запущен, потихоньку гасим скорость
-            if (!active) velocity *= 0.5f; 
-        }, 250);
+            if (!active) velocity = 0; 
+        }, 200);
     }
 
     private void killQueue(float x, float y) {
-        Path p = new Path();
-        p.moveTo(x, y);
-        p.lineTo(x, y + 1);
+        Path p = new Path(); p.moveTo(x, y); p.lineTo(x, y + 1);
         GestureDescription.StrokeDescription sd = new GestureDescription.StrokeDescription(p, 0, 10);
         dispatchGesture(new GestureDescription.Builder().addStroke(sd).build(), null, null);
     }
 
     private void pulse(final float x, final float y) {
         if (!active || Math.abs(velocity) < 1.0f) {
-            velocity = 0;
-            active = false;
-            pincetStep = 0;
-            return;
+            velocity = 0; active = false; pincetStep = 0; return;
         }
 
         float step = velocity * 0.12f;
