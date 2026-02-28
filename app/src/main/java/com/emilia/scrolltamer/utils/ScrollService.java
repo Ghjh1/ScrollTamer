@@ -14,8 +14,8 @@ public class ScrollService extends AccessibilityService {
     protected void onServiceConnected() { instance = this; }
 
     public static String getDebugData() {
-        int currentT = 39 - (int)(velocity / 15); // Динамический T
-        return String.format("D: %.0f | T: %dms", 14.0f + velocity, Math.max(36, currentT));
+        int currentT = 39 - (int)(velocity / 16); 
+        return String.format("D: %.0f | T: %dms", 14.0f + velocity, Math.max(34, currentT));
     }
 
     public static void scroll(float delta, float x, float y) {
@@ -26,21 +26,19 @@ public class ScrollService extends AccessibilityService {
         long interval = now - lastEventTime;
         lastEventTime = now;
 
-        // Если крутим активно
         if (interval < 180) {
-            velocity += 3.5f; // Быстрее набираем мощь
-            if (velocity > 51.0f) velocity = 51.0f; // Итого D до 65
+            // Резко прибавляем мощь (5.0 вместо 3.5)
+            velocity += 5.0f; 
+            if (velocity > 81.0f) velocity = 81.0f; // Итого D до 95
         } else {
-            velocity = 0; // Сброс на базу
+            velocity = 0; // Возврат к ювелирной базе 14px
         }
 
-        // РАСЧЕТ ДИСТАНЦИИ (14..65)
         int finalStep = (int)(14 + velocity);
 
-        // РАСЧЕТ ТАЙМИНГА (39..36)
-        // Чем выше velocity, тем меньше T (больше флинг)
-        int finalT = 39 - (int)(velocity / 15); 
-        if (finalT < 36) finalT = 36;
+        // Динамический расчет T: от 39 до 34
+        int finalT = 39 - (int)(velocity / 16); 
+        if (finalT < 34) finalT = 34;
 
         Path path = new Path();
         path.moveTo(x, y);
