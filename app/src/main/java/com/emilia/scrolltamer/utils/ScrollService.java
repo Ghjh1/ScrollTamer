@@ -31,17 +31,12 @@ public class ScrollService extends AccessibilityService {
             windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
             overlayView = new View(this);
             
-            int layoutType = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O 
-                             ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
-                             : WindowManager.LayoutParams.TYPE_PHONE;
-    
-            // Настраиваем "Стеклянный щит" на весь экран
+            // Используем системный тип для сервисов спец. возможностей
             WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                layoutType,
+                1, 1, // Крошечный размер, чтобы не мешать
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | // Пальцы проходят насквозь
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH | // Слушать, что происходит вокруг
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             );
@@ -49,19 +44,19 @@ public class ScrollService extends AccessibilityService {
             params.gravity = Gravity.TOP | Gravity.LEFT;
     
             overlayView.setOnGenericMotionListener((v, event) -> {
-                // На этом слое мы ловим КОРНЕВОЕ событие прокрутки
-                if (event.getAction() == MotionEvent.ACTION_SCROLL) {
-                    float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
-                    // Бьем точно в координаты курсора
-                    scroll(vScroll, event.getRawX(), event.getRawY());
-                    return true; 
+                // Если событие произошло "вне" нашего пикселя (ACTION_SCROLL_OUTSIDE или просто SCROLL)
+                if (event.getAction() == MotionEvent.ACTION_SCROLL || 
+                    event.getAction() == 8) { // 8 — это скрытый код для прокрутки в некоторых версиях
+                    
+                    scroll(event.getAxisValue(MotionEvent.AXIS_VSCROLL), event.getRawX(), event.getRawY());
+                    return true;
                 }
                 return false;
             });
     
             windowManager.addView(overlayView, params);
         } catch (Exception e) {
-            // Ошибка может быть, если сервис перезапустился, а окно еще висит
+            // Ошибка игнорируется
         }
     }
 
