@@ -9,6 +9,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.Gravity;
+
 
 public class ScrollService extends AccessibilityService {
     private static ScrollService instance;
