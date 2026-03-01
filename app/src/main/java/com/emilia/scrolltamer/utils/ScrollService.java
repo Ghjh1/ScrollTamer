@@ -28,31 +28,40 @@ public class ScrollService extends AccessibilityService {
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         overlayView = new View(this);
         
-        // Настройка окна на ВЕСЬ ЭКРАН (MATCH_PARENT)
+        // НОВЫЙ КОНФИГ ДЛЯ ПРЕРЫВАНИЯ БЛОКИРОВКИ MIUI
+        int layoutType = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O 
+                         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY 
+                         : WindowManager.LayoutParams.TYPE_PHONE;
+    
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            1, 1, // Начнем с 1 пикселя, чтобы не перекрывать экран
+            layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | 
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | 
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH, // Важный флаг для захвата событий
             PixelFormat.TRANSLUCENT
         );
-
+        
+        params.gravity = Gravity.TOP | Gravity.LEFT;
+    
         overlayView.setOnGenericMotionListener((v, event) -> {
-            if (event.getSource() == InputDevice.SOURCE_MOUSE && 
-                event.getAction() == MotionEvent.ACTION_SCROLL) {
+            // Проверяем ЛЮБОЕ движение колеса в системе
+            if (event.getAction() == MotionEvent.ACTION_SCROLL) {
                 float vScroll = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
                 scroll(vScroll, event.getRawX(), event.getRawY());
                 return true;
             }
             return false;
         });
-
+    
         try {
             windowManager.addView(overlayView, params);
-        } catch (Exception e) { /* Права не выданы */ }
+        } catch (Exception e) {
+            // Если здесь ошибка — значит точно права
+        }
     }
+
 
     public static String getDebugData() {
         return String.format("D: %.0f | V: %.1f | GLOBAL SNIPER", 14.0f + velocity, velocity);
